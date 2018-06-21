@@ -1,0 +1,18 @@
+#use to normalize data
+np.where(condition,value1,value2)
+
+#heatmap graph
+plt.imshow(z)
+plt.colorbar()
+
+#open browser
+website = 'https://github.com/jmportilla/Udemy-notes'
+import webbrowser
+webbrowser.open(website)
+
+#call columns from file
+variable_name = pd.read_csv()
+variable_name.columns()
+
+#Grab multipe columns
+DataFrame(variable_name, columns = ['column1','column2','column3'])
