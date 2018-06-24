@@ -1,0 +1,35 @@
+import pandas as pd
+from pandas import Series, DataFrame
+import seaborn as sns
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+titanic_df = pd.read_csv(r'C:\Users\Tim Walton\Desktop\Python Training\train.csv')
+
+titanic_df.head()
+
+titanic_df.info()
+
+sns.factorplot('Sex',data=titanic_df,kind='count')
+
+sns.factorplot(x='Pclass', data=titanic_df, kind='count', hue='Sex')
+
+def male_female_child(passenger):
+    age,sex = passenger
+    if age < 16:
+        return 'child'
+    else:
+        return sex
+        
+titanic_df['Person'] = titanic_df[['Age','Sex']].apply(male_female_child, axis=1)
+
+titanic_df[0:10]
+
+sns.factorplot(x='Pclass', data=titanic_df, kind='count', hue='Person')
+
+titanic_df['Age'].hist(bins=70)
+
+titanic_df['Age'].mean()
+
+titanic_df['Person'].value_counts()
