@@ -29,3 +29,23 @@ p2p_df['PO Amount'] = p2p_df['PO Amount'].astype(str).astype(float)
 
 ### Change 'Requisition to PO Date' from object to string and 'extract' the integer ###
 p2p_df['Requisition to PO Date'] = p2p_df['Requisition to PO Date'].astype(str).str.extract('(\d+)')
+
+### Plotting PO amount vs time length vs Purchase Method.  ylim & xlim allow for specification of axes limits ###
+sns.lmplot('Requisition to PO Date', 'PO Amount', hue='Purchase Method',data=p2p1po_df, size=8, aspect=2, fit_reg=False)
+plt.ylim(0,500000)
+plt.xlim(0,100)
+
+### Annotated Heatmap, breakout of Project ID vs Account ID vs $ ###
+accounts = p2p1po_df.pivot_table(index='Project ID PO', columns='Comp. Object PO', values='PO Amount', aggfunc=np.sum)
+f, ax = plt.subplots(figsize=(15, 10))
+sns.heatmap(accounts, annot=False, linewidths=1, vmax=250000)
+
+### Diagonal correlation matrix using the accounts pivot table and np.sum to filter for unique values ###
+sns.set(style="white")
+corr = accounts.corr()
+mask = np.zeros_like(corr, dtype=np.bool)
+mask[np.triu_indices_from(mask)] = True
+f, ax = plt.subplots(figsize=(11, 9))
+cmap = sns.diverging_palette(220, 10, as_cmap=True)
+sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3, center=0,
+            square=True, linewidths=.5, cbar_kws={"shrink": .5})
