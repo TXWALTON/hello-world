@@ -27,6 +27,10 @@ p2p1po_df = p2p_df.drop_duplicates(subset='PO Number')
 ### Change 'PO Amount' from object to string to float (needed to remove the commas) ###
 p2p_df['PO Amount'] = p2p_df['PO Amount'].astype(str).astype(float)
 
+### OR change from oject to float this way ###
+p2p_df['PO Amount'] = [col.replace(',', '') for col in p2p_df['PO Amount']]
+p2p_df['PO Amount'] = pd.to_numeric(p2p_df['PO Amount'])
+
 ### Change 'Requisition to PO Date' from object to string and 'extract' the integer ###
 p2p_df['Requisition to PO Date'] = p2p_df['Requisition to PO Date'].astype(str).str.extract('(\d+)')
 
