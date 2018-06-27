@@ -1,0 +1,52 @@
+import pandas as pd
+
+p2p_df = pd.read_csv('C:\\Users\\TWALTON\\Desktop\\procuretopay.csv',encoding='windows-1252')
+hwsw_df = pd.read_excel('file_location.xlsx')
+
+###### Class ######
+class PO:
+
+  ##### Functions ##### (What do I need this thing to do)
+
+    #### def search_hwsw ####  search hwsw for requisition that does not have a po
+      need to search multiple sheets
+      need to skip the first 3 rows and any cell that does not start with 00000
+      if requisition cell is blank on sheet break and move to next sheet.  if no other sheet break
+      create list of requisitions that have blank PO cells
+      
+    #### def search_svc ####
+        need to skip the first 3 rows and any cell that does not start with 00000
+        create list of requisitions that have blank PO cells
+
+    #### def combine_reqs ####
+        combine lists from hwsw and svc - maybe create new spreadsheet and add to column 1
+
+    #### def combinne_po ####
+        create dataset that correlates the req with the po - on new spreadsheet add to column 2
+
+    #### def search_p2p ####
+        search p2p using combine_reqs
+        add PO to combine_po
+
+    #### def add_hwsw_po ####
+        add po information to corresponding requisition from hwsw and combine_po
+        make sure font/size/color etc is correct
+
+    #### def add_svc_po ####
+        add po information to corresponding requisition from hwsw and combine_po
+        make sure font/size/color etc is correct
+
+    #### def save_hwsw ####
+      save hwsw speadsheet
+
+    #### def save_hwsw ####
+      save hwsw speadsheet  
+
+    #### def save_combine_po ####
+      save hwsw speadsheet
+ 
+class Receipt
+  
+  
+  
+  
