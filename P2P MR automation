@@ -3,6 +3,9 @@ import pandas as pd
 p2p_df = pd.read_csv('C:\\Users\\TWALTON\\Desktop\\procuretopay.csv',encoding='windows-1252')
 hwsw_df = pd.read_excel('file_location.xlsx')
 
+idx[idx.duplicated()].unique()  ## extract duplicates from index elements
+df.columns = ['a', 'b'] ## Change column names
+
 ###### Class ######
 class PO:
 
@@ -17,24 +20,11 @@ class PO:
     #### def search_svc ####
         need to skip the first 3 rows and any cell that does not start with 00000
         create list of requisitions that have blank PO cells
-
-    #### def combine_reqs ####
-        combine lists from hwsw and svc - maybe create new spreadsheet and add to column 1
-
-    #### def combinne_po ####
-        create dataset that correlates the req with the po - on new spreadsheet add to column 2
-
-    #### def search_p2p ####
-        search p2p using combine_reqs
-        add PO to combine_po
-
-    #### def add_hwsw_po ####
-        add po information to corresponding requisition from hwsw and combine_po
-        make sure font/size/color etc is correct
-
-    #### def add_svc_po ####
-        add po information to corresponding requisition from hwsw and combine_po
-        make sure font/size/color etc is correct
+        
+        df = df.assign(COL3=np.where(df.COL1.isnull(), df.COL2, 0))  ## play with this to create a column of reqs with no po ##
+        
+   #### def search_p2p ####
+        df = df.assign(COL3=np.where(df.COL1.isnull(), df.COL2, 0)) ## try to use the where attribute again ##
 
     #### def save_hwsw ####
       save hwsw speadsheet
