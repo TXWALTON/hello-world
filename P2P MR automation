@@ -1,3 +1,6 @@
+* = code still in dev
+:) = code works!
+
 import pandas as pd
 
 p2p_df = pd.read_csv('C:\\Users\\TWALTON\\Desktop\\procuretopay.csv',encoding='windows-1252')
@@ -21,10 +24,20 @@ class PO:
         need to skip the first 3 rows and any cell that does not start with 00000
         create list of requisitions that have blank PO cells
         
-        df = df.assign(COL3=np.where(df.COL1.isnull(), df.COL2, 0))  ## play with this to create a column of reqs with no po ##
+        :) mr_svc['Req to PO'] = np.where(mr_svc['Unnamed: 24'].isnull(), mr_svc['Unnamed: 13'], 'PO Issued')
         
    #### def search_p2p ####
-        df = df.assign(COL3=np.where(df.COL1.isnull(), df.COL2, 0)) ## try to use the where attribute again ##
+        ### match p2p req with search_svc req, returrn po#, line#, line $, purchaser, po date line = 1 then start loop over
+        or
+        ### slice col if p2p req matches search_svc
+        df.loc[:, 'foo':'sat']  ## Slice columns
+        df.loc[:, ['foo','bar','dat']]  ## Select specific columns
+        
+        ### append search_svc to p2p ###
+        * with open('C:\\Users\\TWALTON\\Desktop\\procuretopay.csv', 'a') as f:
+             req_to_po.to_csv(f, header=False)
+        
+        * df = df.assign(COL3=np.where(df.COL1 == df.COL4,  df.loc[:, ['foo','bar','dat']], 'No PO Yet')) ## try to use the where attribute again ##
 
     #### def save_hwsw ####
       save hwsw speadsheet
