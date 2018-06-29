@@ -9,46 +9,50 @@ hwsw_df = pd.read_excel('file_location.xlsx')
 idx[idx.duplicated()].unique()  ## extract duplicates from index elements
 df.columns = ['a', 'b'] ## Change column names
 
-###### Class ######
-class PO:
+***** Merging multiple CSV files *****
+import pandas as pd
+import glob
 
-  ##### Functions ##### (What do I need this thing to do)
+files = glob.glob(r'2017-12-05\Aggregated\*.csv')   //folder which contains all the csv files
+df = pd.concat([pd.read_csv(f, index_col=[0,1]) for f in files])
 
-    #### def search_hwsw ####  search hwsw for requisition that does not have a po
-      need to search multiple sheets
-      need to skip the first 3 rows and any cell that does not start with 00000
-      if requisition cell is blank on sheet break and move to next sheet.  if no other sheet break
-      create list of requisitions that have blank PO cells
-      
-    #### def search_svc ####
-        need to skip the first 3 rows and any cell that does not start with 00000
-        create list of requisitions that have blank PO cells
-        
-        :) mr_svc['Req to PO'] = np.where(mr_svc['Unnamed: 24'].isnull(), mr_svc['Unnamed: 13'], 'PO Issued')
-        
-   #### def search_p2p ####
-        ### match p2p req with search_svc req, returrn po#, line#, line $, purchaser, po date line = 1 then start loop over
-        or
-        ### slice col if p2p req matches search_svc
-        df.loc[:, 'foo':'sat']  ## Slice columns
-        df.loc[:, ['foo','bar','dat']]  ## Select specific columns
-        
-        ### append search_svc to p2p ###
-        * with open('C:\\Users\\TWALTON\\Desktop\\procuretopay.csv', 'a') as f:
-             req_to_po.to_csv(f, header=False)
-        
-        * df = df.assign(COL3=np.where(df.COL1 == df.COL4,  df.loc[:, ['foo','bar','dat']], 'No PO Yet')) ## try to use the where attribute again ##
+***** Merging multiple CSV files *****
 
-    #### def save_hwsw ####
-      save hwsw speadsheet
+##### Functions ##### (What do I need this thing to do)
 
-    #### def save_hwsw ####
-      save hwsw speadsheet  
+#### def search_hwsw ####  search hwsw for requisition that does not have a po
+  need to search multiple sheets
+  need to skip the first 3 rows and any cell that does not start with 00000
 
-    #### def save_combine_po ####
-      save hwsw speadsheet
- 
-class Receipt
+  * df['Req to PO'] = np.where(df['Unnamed: 24'].isnull(), df['Unnamed: 13'], 'PO Issued')
+
+#### def search_svc ####
+    need to skip the first 3 rows and any cell that does not start with 00000
+    create list of requisitions that have blank PO cells
+
+    :) mr_svc['Req to PO'] = np.where(mr_svc['Unnamed: 24'].isnull(), mr_svc['Unnamed: 13'], 'PO Issued')
+
+#### def search_p2p ####
+    ### match p2p req with search_svc req, returrn po#, line#, line $, purchaser, po date line = 1 then start loop over
+    or
+    ### slice col if p2p req matches search_svc
+    df.loc[:, 'foo':'sat']  ## Slice columns
+    df.loc[:, ['foo','bar','dat']]  ## Select specific columns
+
+    ### append search_svc to p2p ###
+    * with open('C:\\Users\\TWALTON\\Desktop\\procuretopay.csv', 'a') as f:
+         req_to_po.to_csv(f, header=False)
+
+    * df = df.assign(COL3=np.where(df.COL1 == df.COL4,  df.loc[:, ['foo','bar','dat']], 'No PO Yet')) ## try to use the where attribute again ##
+
+#### def save_hwsw ####
+  save hwsw speadsheet
+
+#### def save_hwsw ####
+  save hwsw speadsheet  
+
+#### def save_combine_po ####
+  save hwsw speadsheet
   
   
   
