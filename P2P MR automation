@@ -8,6 +8,7 @@ hwsw_df = pd.read_excel('file_location.xlsx')
 
 idx[idx.duplicated()].unique()  ## extract duplicates from index elements
 df.columns = ['a', 'b'] ## Change column names
+df.dtypes  ## view dtypes of all columns
 
 ***** Merging multiple CSV files *****
 import pandas as pd
@@ -33,18 +34,22 @@ df = pd.concat([pd.read_csv(f, index_col=[0,1]) for f in files])
     :) mr_svc['Req to PO'] = np.where(mr_svc['Unnamed: 24'].isnull(), mr_svc['Unnamed: 13'], 'PO Issued')
 
 #### def search_p2p ####
+
+    ### Need to match dtype of 'Requisition ID', 'Purchase Order ID', and 'Requisition to PO' columns
+    * df.col = df.col.astype(int)
+    * df.column_name = df.column_name.astype(str)
+    
     ### match p2p req with search_svc req, returrn po#, line#, line $, purchaser, po date line = 1 then start loop over
     or
     ### slice col if p2p req matches search_svc
     df.loc[:, 'foo':'sat']  ## Slice columns
     df.loc[:, ['foo','bar','dat']]  ## Select specific columns
-
+     * df = df.assign(COL3=np.where(df.COL1 == df.COL4,  df.loc[:, ['foo','bar','dat']], 'No PO Yet')) ## try to use the where attribute again ##
+     *  DataFrame.isin(values)  ## returns boolean. Try a while not DataFrame.isin(values) return df.loc[:, ['foo','bar','dat']]
+     
     ### append search_svc to p2p ###
-    * with open('C:\\Users\\TWALTON\\Desktop\\procuretopay.csv', 'a') as f:
-         req_to_po.to_csv(f, header=False)
-
-    * df = df.assign(COL3=np.where(df.COL1 == df.COL4,  df.loc[:, ['foo','bar','dat']], 'No PO Yet')) ## try to use the where attribute again ##
-
+      DONE
+      
 #### def save_hwsw ####
   save hwsw speadsheet
 
