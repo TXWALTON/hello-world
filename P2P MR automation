@@ -10,6 +10,10 @@ idx[idx.duplicated()].unique()  ## extract duplicates from index elements
 df.columns = ['a', 'b'] ## Change column names
 df.dtypes  ## view dtypes of all columns
 
+## Add '00000' to requisition ID ## 
+  * for req in p2p_df[0][0][1:]:
+      print('00000'+str(req))
+
 ***** Merging multiple CSV files *****
 import pandas as pd
 import glob
