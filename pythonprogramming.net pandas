@@ -1,0 +1,15 @@
+import quandl
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib import style
+style.use('fivethirtyeight')
+
+HPI_data = quandl.get("FMAC/HPI", authtoken="iKZyfcnpXqMa9PSwUgkR")
+
+def state_data():
+    for abbv in HPI_data:
+        HPI_data[abbv] = (HPI_data[abbv] - HPI_data[abbv][0]) / HPI_data[abbv][0] * 100
+        
+state_data()
+HPI_data.plot()
+plt.legend().remove()
