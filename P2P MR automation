@@ -52,8 +52,9 @@ def p2p_merge():
     df.loc[:, 'foo':'sat']  ## Slice columns
     df.loc[:, ['foo','bar','dat']]  ## Select specific columns
      * df = df.assign(COL3=np.where(df.COL1 == df.COL4,  df.loc[:, ['foo','bar','dat']], 'No PO Yet')) ## try to use the where attribute again ##
-     *  DataFrame.isin(values)  ## returns boolean. Try a while not DataFrame.isin(values) return df.loc[:, ['foo','bar','dat']]
- 
+     * DataFrame.isin(values)  ## returns boolean. Try a while not DataFrame.isin(values) return df.loc[:, ['foo','bar','dat']]
+     * df1[df1.B.isin(df2.B)] ## boolean that returns values from df2.B that are in df1.B
+     
       
 #### def save_hwsw ####
   save hwsw speadsheet
