@@ -2,40 +2,43 @@
 :) = code works!
 
 import pandas as pd
-
-p2p_df = pd.read_csv('C:\\Users\\TWALTON\\Desktop\\procuretopay.csv',encoding='windows-1252')
-hwsw_df = pd.read_excel('file_location.xlsx')
-
-idx[idx.duplicated()].unique()  ## extract duplicates from index elements
-df.columns = ['a', 'b'] ## Change column names
-df.dtypes  ## view dtypes of all columns
-
-## Add '00000' to requisition ID ## 
-  * for req in p2p_df[0][0][1:]:
-      print('00000'+str(req))
-
-***** Merging multiple CSV files *****
-import pandas as pd
+import numpy as np
 import glob
+import pickle
 
-files = glob.glob(r'2017-12-05\Aggregated\*.csv')   //folder which contains all the csv files
-df = pd.concat([pd.read_csv(f, index_col=[0,1]) for f in files])
+pd.options.display.max_columns = None
 
-***** Merging multiple CSV files *****
 
-##### Functions ##### (What do I need this thing to do)
+mr_svc = pd.read_excel(r'C:\Users\TWALTON\Desktop\COPY OF MR 2018- SERVICES v7.xlsm', skiprows= 3)
+mr_svc['Req to PO'] = np.where(mr_svc['Unnamed: 24'].isnull(), mr_svc['Unnamed: 13'], 'PO Issued')
 
-#### def search_hwsw ####  search hwsw for requisition that does not have a po
-  need to search multiple sheets
-  need to skip the first 3 rows and any cell that does not start with 00000
+mr_hwsw = pd.concat(pd.read_excel(r'C:\Users\TWALTON\Desktop\COPY OF MR 2018 - HW SW v6.xlsm'
+                                  ,sheet_name= None, skiprows= 3), axis=0, join='inner', ignore_index=True)
+mr_hwsw['Req to PO'] = np.where(mr_hwsw['Unnamed: 24'].isnull(), mr_hwsw['Unnamed: 13'], 'PO Issued')
 
-  * df['Req to PO'] = np.where(df['Unnamed: 24'].isnull(), df['Unnamed: 13'], 'PO Issued')
+svc_req = mr_svc[['Req to PO']]
+hwsw_req = mr_hwsw[['Req to PO']]
 
-#### def search_svc ####
-    need to skip the first 3 rows and any cell that does not start with 00000
-    create list of requisitions that have blank PO cells
+req_list = [svc_req, hwsw_req]
 
-    :) mr_svc['Req to PO'] = np.where(mr_svc['Unnamed: 24'].isnull(), mr_svc['Unnamed: 13'], 'PO Issued')
+req_to_po = pd.concat(req_list)
+
+### Merge all DDO P2P csv files ###
+
+def p2p_merge():
+    
+    file = r'C:\Users\TWALTON\Desktop\p2p_all_ddo'
+    p2p_csv = glob.glob(file + '/*.csv')
+    frame = pd.DataFrame()
+    list = []
+
+    for f in p2p_csv:
+        df = pd.read_csv(f, index_col=None, header=0, encoding = 'Latin_1')
+        list.append(df)
+    frame = pd.concat(list)
+
+    frame.to_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\merged3.csv')
+    
 
 #### def search_p2p ####
 
@@ -50,9 +53,7 @@ df = pd.concat([pd.read_csv(f, index_col=[0,1]) for f in files])
     df.loc[:, ['foo','bar','dat']]  ## Select specific columns
      * df = df.assign(COL3=np.where(df.COL1 == df.COL4,  df.loc[:, ['foo','bar','dat']], 'No PO Yet')) ## try to use the where attribute again ##
      *  DataFrame.isin(values)  ## returns boolean. Try a while not DataFrame.isin(values) return df.loc[:, ['foo','bar','dat']]
-     
-    ### append search_svc to p2p ###
-      DONE
+ 
       
 #### def save_hwsw ####
   save hwsw speadsheet
@@ -62,7 +63,3 @@ df = pd.concat([pd.read_csv(f, index_col=[0,1]) for f in files])
 
 #### def save_combine_po ####
   save hwsw speadsheet
-  
-  
-  
-  
