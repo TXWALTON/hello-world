@@ -3,14 +3,14 @@
 
 ### Need to know ###
 
-   ## Success rate of converting first downs at 10+ yards, 9-1 yard ##
+   ## Success rate of converting first downs at converting 1st downs ##
       # True or False - was a first down converted #
         # If FirstDown == 1 and posteam row1 == posteam row2:
             return True
           else:
             return False
             
-          # Graph count Trues for all downs with ydstogo #
+          # Graph count Trues for each down with ydstogo #
           
    ## Scoring percentage based on field location ##
       # Search for TOUCHDOWN and 'field goal is GOOD' in column #
