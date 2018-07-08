@@ -21,3 +21,52 @@
               return 'FIELD GOAL'
           else:
               return False
+
+
+##### Actual Code #####
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import style
+style.use('fivethirtyeight')
+%matplotlib inline
+
+df = pd.read_csv(r'C:\Users\Tim Walton\Desktop\Python Training\NFL Play by Play.csv')
+pd.options.display.max_columns = None
+
+# locate all rows with 1 in comlumn 'Fumble'
+fumble = df.loc[df['Fumble']==1]
+fumble
+
+# Creating new column that combines fumbles and interceptions
+df['Turnover'] = np.where((df['Fumble']==1) | (df['InterceptionThrown'] ==1), 1, 0)
+
+
+# Creating new dataframe with the columns that I want to use
+go_for_it = df[['GameID', 'Drive', 'qtr', 'down', 'time', 'SideofField', 'yrdln', 'yrdline100', 'ydstogo', 'FirstDown', 'posteam' , 
+               'DefensiveTeam', 'Yards.Gained', 'PlayType', 'Turnover']]
+               
+# Attempting to remove first downs that also show up in the 'Turnover' column
+go_for_it = go_for_it.loc[go_for_it['FirstDown']==1 & go_for_it]
+
+# Not sure what to make of this code yet, attempting to find legitimate first downs
+def first_down():
+    yds = (go_for_it['ydstogo'])
+    gained = (go_for_it['Yards.Gained'])
+    first = 0
+    while (go_for_it['Turnover'] == 0):
+        for row in go_for_it:
+            if gained >= yds:
+                first += first +1
+            return first
+
+# Only calls the values in play_type for the PlayType column
+play_type = ['Pass', 'Run', 'No Play', 'Sack']
+go_for_it = go_for_it.loc[go_for_it['PlayType'].isin(play_type)]
+go_for_it
+first_down()
+
+go_for_it['PlayType'].value_counts()
+go_for_it['FirstDown'].value_counts()
+go_for_it['down'].value_counts()
