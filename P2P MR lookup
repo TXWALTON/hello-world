@@ -1,0 +1,166 @@
+import pandas as pd
+from pandas import Series, DataFrame
+import numpy as np
+import tkinter as tk
+from tkinter import ttk
+LARGE_FONT= ("Verdana", 12)
+
+
+class P2P_Gui(tk.Tk):
+
+    def __init__(self, *args, **kwargs):
+        
+        tk.Tk.__init__(self, *args, **kwargs)
+        
+        tk.Tk.wm_title(self, 'Procurement Lookup Tool')
+        
+        container = tk.Frame(self)
+        container.pack(side="top", fill="both", expand = True)
+
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+
+        self.frames = {}
+        
+        for F in (HomePage, PoPage, ReqPage, RecPage):
+
+            frame = F(container, self)
+
+            self.frames[F] = frame
+
+            frame.grid(row=0, column=0, sticky="nsew")
+
+        self.show_frame(HomePage)
+
+    def show_frame(self, cont):
+
+        frame = self.frames[cont]
+        frame.tkraise()
+
+        
+class HomePage(tk.Frame):
+
+    def __init__(self, parent, controller):
+        
+        tk.Frame.__init__(self,parent)
+        label = ttk.Label(self, text="P2P Lookup Tool", font=LARGE_FONT)
+        label.pack(pady=10,padx=10)
+        
+        po_button = ttk.Button(self, text='Purchase Order', command= lambda: controller.show_frame(PoPage))
+        po_button.pack()
+        
+        req_button = ttk.Button(self, text='Requisition', command= lambda: controller.show_frame(ReqPage))
+        req_button.pack()
+        
+        rec_button = ttk.Button(self, text='Receipt', command= lambda: controller.show_frame(RecPage))
+        rec_button.pack()
+        
+        
+class ReqPage(tk.Frame):
+    
+    def __init__(self, parent, controller):
+        
+        tk.Frame.__init__(self,parent)
+        label = ttk.Label(self, text="Requisition Search", font=LARGE_FONT)
+        label.pack(pady=10,padx=10)
+        
+        self.entry = ttk.Entry(self, text= 'Enter Requisition ID: ')
+        self.entry.pack()
+        self.entry.focus_set()
+        self.req_entry = self.entry.get()
+        
+        req_button = ttk.Button(self, text='Search Requisition', command= lambda: int(self.req_lookup()))
+        req_button.pack()
+        
+        po_button = ttk.Button(self, text='Go To PO Search', command= lambda: controller.show_frame(PoPage))
+        po_button.pack()
+        
+        rec_button = ttk.Button(self, text='Go To Receipt Search', command= lambda: controller.show_frame(RecPage))
+        rec_button.pack()
+        
+        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button.pack()
+        
+    def req_lookup(self):
+        req_to_po = p2p_df1_imd.loc[p2p_df1_imd['Requisition ID'] == self.req_entry]
+        return req_to_po
+        
+#         canvas = FigureCanvasTkAgg(req_to_po, self)
+#         canvas.show()
+#         canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+#         canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+    
+    
+class PoPage(tk.Frame):
+    
+    def __init__(self, parent, controller):
+        
+        tk.Frame.__init__(self,parent)
+        label = ttk.Label(self, text="Purchase Order Search", font=LARGE_FONT)
+        label.pack(pady=10,padx=10)
+        
+        entry = ttk.Entry(self, text= 'Enter Purchase Order ID: ')
+        entry.pack()
+        entry.focus_set()
+        
+        req_button = ttk.Button(self, text='Go To Req Search', command= lambda: controller.show_frame(ReqPage))
+        req_button.pack()
+        
+        rec_button = ttk.Button(self, text='Go To Receipt Search', command= lambda: controller.show_frame(RecPage))
+        rec_button.pack()
+        
+        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button.pack()
+        
+#     def po_lookup(self):
+#         po_entry = entry.get()
+#         po_to_rec = tk.Label(self, p2p_df1_imd.loc[p2p_df1_imd['PO Number'] == int(po_entry)]
+#         return po_to_rec
+
+
+class RecPage(tk.Frame):
+    
+    def __init__(self, parent, controller):
+        
+        tk.Frame.__init__(self,parent)
+        label = ttk.Label(self, text="Receipt Search", font=LARGE_FONT)
+        label.pack(pady=10,padx=10)
+        
+        entry = ttk.Entry(self, text= 'Enter Receipt ID: ')
+        entry.pack()
+        entry.focus_set()
+        #entry.bind('<Return>', command=onclick)
+        
+        rec_button = ttk.Button(self, text='Search Receipt', command= lambda: controller.show_frame(ReqPage))
+        rec_button.pack()
+        
+        req_button = ttk.Button(self, text='Go To Req Search', command= lambda: controller.show_frame(ReqPage))
+        req_button.pack()
+        
+        po_button = ttk.Button(self, text='Go To PO Search', command= lambda: controller.show_frame(PoPage))
+        po_button.pack()
+        
+        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button.pack()
+
+#     def rec_lookup(self):
+#         rec_entry = entry.get()
+#         rec_to_voucher = tk.label(self, p2p_df1_imd.loc[p2p_df1_imd['Receipt ID'] == int(rec_entry)]
+#         return rec_to_voucher
+        
+
+# CSV Data variables    
+
+p2p_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\merged3.csv', thousands=',')
+
+p2p_df1 = p2p_df[['Requisitioner Name','Requisition ID', 'Requisition Date', 'PO Number', 'PO Date', 'PO Buyer Name', 'PO Line', 'Contract ID' , 
+                 'PO Quantity', 'PO Amount', 'DDO PO', 'PO Vendor Name', 'Department ID PO', 'Fund Code PO', 'Class Field PO', 
+                  'Project CostinG Business Unit PO', 'Project ID PO', 'Receipt ID', 'Receipt Date', 'Voucher ID', 
+                 'Voucher Amount', 'Invoice ID', 'Total PO Amount', 'Total Amount Received', 'Purchase Method']]
+
+p2p_df1_imd = p2p_df1.loc[p2p_df1['Requisitioner Name'].isin(['Walton Timothy', 'Rhoads Jay', 'Birdwell Diana', 
+                                                              'Robinson Debra', 'Garcia Karen'])] 
+
+
+app = P2P_Gui()
+app.mainloop()
