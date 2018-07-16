@@ -25,6 +25,7 @@
           else:
               return False
 
+### Use matplotlib histogram to bin values such as ydstogo, netyds, and Yards.Gained
 
 ##### Actual Code #####
 
