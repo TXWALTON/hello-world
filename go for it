@@ -29,47 +29,32 @@
 
 ##### Actual Code #####
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import style
-style.use('fivethirtyeight')
-%matplotlib inline
+#  Look at all the unique values in 'PlayType' column
+df['PlayType'].unique()
 
-df = pd.read_csv(r'C:\Users\Tim Walton\Desktop\Python Training\NFL Play by Play.csv')
-pd.options.display.max_columns = None
-
-# locate all rows with 1 in comlumn 'Fumble'
-fumble = df.loc[df['Fumble']==1]
-fumble
-
-# Creating new column that combines fumbles and interceptions
+#  Create two new columns
 df['Turnover'] = np.where((df['Fumble']==1) | (df['InterceptionThrown'] ==1), 1, 0)
+df['Field Goal'] = np.where((df['FieldGoalResult']== 'Good'), 1, 0)
 
+#  Changing Field Goals and Turnovers marked as first downs as 0.0
+df.loc[df['PlayType'] == 'Field Goal', 'FirstDown'] = 0.0
+df.loc[df['Turnover'] == 1, 'FirstDown'] = 0.0
 
-# Creating new dataframe with the columns that I want to use
-go_for_it = df[['GameID', 'Drive', 'qtr', 'down', 'time', 'SideofField', 'yrdln', 'yrdline100', 'ydstogo', 'FirstDown', 'posteam' , 
-               'DefensiveTeam', 'Yards.Gained', 'PlayType', 'Turnover']]
-               
-# Attempting to remove first downs that also show up in the 'Turnover' column
-go_for_it = go_for_it.loc[go_for_it['FirstDown']==1 & go_for_it]
+#  Creating a new Dataframe
+go_for_it = df[['GameID', 'Drive', 'qtr', 'down', 'time', 'SideofField', 'yrdln', 'yrdline100', 'ydstogo', 'ydsnet', 
+                'FirstDown', 'posteam' , 'DefensiveTeam', 'Yards.Gained', 'PlayType', 'Turnover', 'Touchdown', 'Field Goal']]
 
-# Not sure what to make of this code yet, attempting to find legitimate first downs
-def first_down():
-    yds = (go_for_it['ydstogo'])
-    gained = (go_for_it['Yards.Gained'])
-    first = 0
-    while (go_for_it['Turnover'] == 0):
-        for row in go_for_it:
-            if gained >= yds:
-                first += first +1
-            return first
+# Shows all legitimate plays made by the team in possession
+#  Remove from PlayType [Kickoff, Punt, Field Goal, Quarter End, Two Minute Warning, 
+#         Timeout, Extra Point, QB Kneel, End of Game, Spike, Half End]
+#  Keep   [No Play, Pass, Run, Sack]
+play_list = ['No Play', 'Pass', 'Run', 'Sack']
+actual_plays = go_for_it[go_for_it['PlayType'].isin(play_list)]
 
-# Only calls the values in play_type for the PlayType column
-play_type = ['Pass', 'Run', 'No Play', 'Sack']
-go_for_it = go_for_it.loc[go_for_it['PlayType'].isin(play_type)]
-go_for_it
-first_down()
+# Variables to run to show average yards per down and per quarter
+avg_yds_dwn = actual_plays.groupby('down', as_index=False)['Yards.Gained'].mean()
+avg_yds_qtr = actual_plays.groupby('qtr', as_index=False)['Yards.Gained'].mean()
+avg_yds_dwnqtr = actual_plays.groupby(['qtr', 'down'], as_index=False)['Yards.Gained'].mean()
 
 go_for_it['PlayType'].value_counts()
 go_for_it['FirstDown'].value_counts()
