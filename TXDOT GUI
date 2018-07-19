@@ -1,0 +1,20 @@
+# WHAT IT WILL DO #
+# Create new entries into a flat file via user entry fields (purchase types, description, requisition#, creator initials)
+# Automatically pull PO, receipt, and voucher info based on requisition# (chartfields, PO info, receipt info, voucher info)
+# Allow users to search the flat file and output results based on user selections
+# Create comments for users to enter into tickets for requisitions, POs, and receipts
+
+# Create new purchase request
+#   purchase types - HW/SW, SVC, POCN
+
+
+
+# Test Code
+
+
+
+# Working Code
+
+
+
+
