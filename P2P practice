@@ -1,55 +1,41 @@
 import pandas as pd
-from pandas import Series, DataFrame
-import seaborn as sns
 import numpy as np
-import matplotlib.pyplot as plt
-%matplotlib inline
 
-p2p_df = pd.read_csv('C:\\Users\\TWALTON\\Desktop\\procuretopay.csv',encoding='windows-1252')
+#    read csv file and display all columns when dataframe is called
 
-### Display all columns ###
+p2p_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\merged3.csv', thousands=',')
 pd.options.display.max_columns = None
 
-### Bar Graph showing number of requisitions created per requester ###
-sns.factorplot('Requisitioner Name',data=p2p_df,kind='count', aspect=4)
+#    Normalizing the dates in 'Requisition Date', 'PO Date', and 'Receipt Date' columns
 
-### Bar Graph showing number of receipts created per requester ###
-sns.factorplot('Receipt Updated By',data=p2p_df,kind='count', aspect=4)
+p2p_df['Requisition Date'] = pd.to_datetime(p2p_df['Requisition Date'], errors='coerce')
+p2p_df['PO Date'] = pd.to_datetime(p2p_df['PO Date'], errors='coerce')
+p2p_df['Receipt Date'] = pd.to_datetime(p2p_df['Receipt Date'], errors='coerce')
 
-### Standardizing date and then finding the difference between the two dates ###
-p2p_df['Requisition Date'] = pd.to_datetime(p2p_df['Requisition Date'])
-p2p_df['PO Date'] = pd.to_datetime(p2p_df['PO Date'])
+#    Creating two new columns to calculate time lapse between Requisition Date to PO Date and PO Date to Receipt Date
+
 p2p_df['Requisition to PO Date'] = p2p_df['PO Date'] - p2p_df['Requisition Date']
+p2p_df['PO to Receipt'] = p2p_df['Receipt Date'] - p2p_df['PO Date']
 
-### Create new data that only has unique PO numbers ###
-p2p1po_df = p2p_df.drop_duplicates(subset='PO Number')
+#    Changing the data type of the 'PO Amount' column to float (maybe should be string, not sure what is better)
 
-### Change 'PO Amount' from object to string to float (needed to remove the commas) ###
-p2p_df['PO Amount'] = p2p_df['PO Amount'].astype(str).astype(float)
+p2p_df['PO Amount'] = p2p_df['PO Amount'].astype(float)
 
-### OR change from oject to float this way ###
-p2p_df['PO Amount'] = [col.replace(',', '') for col in p2p_df['PO Amount']]
-p2p_df['PO Amount'] = pd.to_numeric(p2p_df['PO Amount'])
+#    Changing the data types of the columns created above to float (again not sure if this is the best idea, maybe should be string)
 
-### Change 'Requisition to PO Date' from object to string and 'extract' the integer ###
-p2p_df['Requisition to PO Date'] = p2p_df['Requisition to PO Date'].astype(str).str.extract('(\d+)')
+p2p_df['Requisition to PO Date'] = p2p_df['Requisition to PO Date'].astype(str).str.extract('(\d+)').astype(float)
+p2p_df['PO to Receipt'] = p2p_df['PO to Receipt'].astype(str).str.extract('(\d+)').astype(float)
 
-### Plotting PO amount vs time length vs Purchase Method.  ylim & xlim allow for specification of axes limits ###
-sns.lmplot('Requisition to PO Date', 'PO Amount', hue='Purchase Method',data=p2p1po_df, size=8, aspect=2, fit_reg=False)
-plt.ylim(0,500000)
-plt.xlim(0,100)
+#    Creating a new dataframe from columns I've deemed useful
 
-### Annotated Heatmap, breakout of Project ID vs Account ID vs $ ###
-accounts = p2p1po_df.pivot_table(index='Project ID PO', columns='Comp. Object PO', values='PO Amount', aggfunc=np.sum)
-f, ax = plt.subplots(figsize=(15, 10))
-sns.heatmap(accounts, annot=False, linewidths=1, vmax=250000)
+p2p_df1 = p2p_df[['Requisitioner Name','Requisition ID', 'Requisition Date', 'Requisition Status', 'PO Number', 'PO Date', 
+                  'PO Buyer Name', 'PO Line', 'Contract ID' , 'PO Quantity', 'PO Amount', 'DDO PO', 'PO Vendor Name', 
+                  'Service Start Date', 'Service End Date', 'Department ID PO', 'Fund Code PO', 'Class Field PO', 
+                  'Project CostinG Business Unit PO', 'Project ID PO', 'Receipt ID', 'Receipt Date', 'Voucher ID', 
+                  'Voucher Amount', 'Invoice ID', 'Voucher Entered Date', 'Total PO Amount', 'Total Amount Received', 
+                  'Purchase Method', 'Requisition to PO Date', 'PO to Receipt']]
+                  
+#    Creating a list of requisition creators and creating a variable to call to filter on the names in the requisitioner_list
 
-### Diagonal correlation matrix using the accounts pivot table and np.sum to filter for unique values ###
-sns.set(style="white")
-corr = accounts.corr()
-mask = np.zeros_like(corr, dtype=np.bool)
-mask[np.triu_indices_from(mask)] = True
-f, ax = plt.subplots(figsize=(11, 9))
-cmap = sns.diverging_palette(220, 10, as_cmap=True)
-sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3, center=0,
-            square=True, linewidths=.5, cbar_kws={"shrink": .5})
+requisitioner_list = ['Robinson Debra', 'Walton Timothy', 'Rhoads Jay', 'Garcia Karen', 'Birdwell Diana']
+p2p_imd_req = p2p_df1[p2p_df1['Requisitioner Name'].isin(requisitioner_list)]
