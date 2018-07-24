@@ -1,27 +1,22 @@
+# Attempt at creating a gui for a new mr entry
+
 import pandas as pd
 from pandas import Series, DataFrame
 import numpy as np
 import tkinter as tk
-from tkinter import ttk
+
 LARGE_FONT= ("Verdana", 12)
 
-#    dataframe
 
-def lookup_data():
+p2p_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\merged3.csv', thousands=',')
 
-    p2p_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\merged3.csv', thousands=',')
+p2p_df1 = p2p_df[['Requisitioner Name','Requisition ID', 'Requisition Date', 'PO Number', 'PO Date', 'PO Buyer Name', 'PO Line', 'Contract ID' , 
+                 'PO Quantity', 'PO Amount', 'DDO PO', 'PO Vendor Name', 'Department ID PO', 'Fund Code PO', 'Class Field PO', 
+                  'Project CostinG Business Unit PO', 'Project ID PO', 'Receipt ID', 'Receipt Date', 'Voucher ID', 
+                 'Voucher Amount', 'Invoice ID', 'Total PO Amount', 'Total Amount Received', 'Purchase Method']]
 
-    p2p_df1 = p2p_df[['Requisitioner Name','Requisition ID', 'Requisition Date', 'PO Number', 'PO Date', 'PO Buyer Name', 'PO Line', 'Contract ID' , 
-                     'PO Quantity', 'PO Amount', 'DDO PO', 'PO Vendor Name', 'Department ID PO', 'Fund Code PO', 'Class Field PO', 
-                      'Project CostinG Business Unit PO', 'Project ID PO', 'Receipt ID', 'Receipt Date', 'Voucher ID', 
-                     'Voucher Amount', 'Invoice ID', 'Total PO Amount', 'Total Amount Received', 'Purchase Method']]
-
-    p2p_df1_imd = p2p_df1.loc[p2p_df1['Requisitioner Name'].isin(['Walton Timothy', 'Rhoads Jay', 'Birdwell Diana', 
-                                                                  'Robinson Debra', 'Garcia Karen'])]
-                                                                  
-#    entry function that requires user input for purchase type, ticket#, description, ddo, initials, requisition#
-#    the function also creates a new dataframe, applies the user input to the new dataframe and merges the new df to the old df, then
-#    saves the file
+p2p_df1_imd = p2p_df1.loc[p2p_df1['Requisitioner Name'].isin(['Walton Timothy', 'Rhoads Jay', 'Birdwell Diana', 
+                                                              'Robinson Debra', 'Garcia Karen'])]
 
 def new_request():
     df = pd.read_csv(r'C:\\Users\\TWALTON\\Desktop\\MRONSTEROIDS.csv')
@@ -47,7 +42,6 @@ def new_request():
     df = pd.concat([df,df1], ignore_index=True)
     df.to_csv('C:\\Users\\TWALTON\\Desktop\\MRONSTEROIDS.csv', sep=',', mode='w', encoding='utf-8', index=False)
 
-#    GUI Shell with buttons and an attempt to create a quit class, but it doesn't work
 
 class P2P_Gui(tk.Tk):
 
@@ -65,7 +59,7 @@ class P2P_Gui(tk.Tk):
 
         self.frames = {}
         
-        for F in (HomePage, EntryPage, SearchPage, RecPage):
+        for F in (HomePage, EntryPage, SearchPage, ReqPage, PoPage, RecPage):
 
             frame = F(container, self)
 
@@ -86,45 +80,77 @@ class HomePage(tk.Frame):
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text='What Would You Like to Do?', font=LARGE_FONT)
+        label = tk.Label(self, text='What Would You Like to Do?', font=LARGE_FONT)
         label.pack(pady=10,padx=10)
         
-        entry_button = ttk.Button(self, text='New Entry', command= lambda: controller.show_frame(EntryPage))
+        entry_button = tk.Button(self, text='New Entry', command= lambda: controller.show_frame(EntryPage))
         entry_button.pack()
         
-        lookup_button = ttk.Button(self, text='MR Lookup', command= lambda: controller.show_frame(SearchPage))
-        entry_button.pack()
+        lookup_button = tk.Button(self, text='MR Lookup', command= lambda: controller.show_frame(SearchPage))
+        lookup_button.pack()
         
-        quit_button = ttk.Button(self, text='Exit', command= self.showQuitDialog)
-        quit_button.pack()
+#         quit_button = ttk.Button(self, text='Exit', command= self.showQuitDialog)
+#         quit_button.pack()
         
-    def showQuitDialog(self):
-        quitdialog = QuitDialog(tk.Tk)
-        quitdialog.start()
+#     def showQuitDialog(self):
+#         quitdialog = QuitDialog(tk.Tk)
+#         quitdialog.start()
 
-    def destroyit(self):
-        self.frame.destroy(self)
+#     def destroyit(self):
+#         self.frame.destroy(self)
         
 class EntryPage(tk.Frame):
     
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="New MR Entry", font=LARGE_FONT)
+        label = tk.Label(self, text="New MR Entry", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
 
-        self.entry = ttk.Entry(self, text= 'Enter Requisition ID: ')
+        self.label = tk.Label(self, text= 'Enter Purchase Type (HW, SW, SVC, POCN)')
+        self.label.pack()
+        self.entry = tk.Entry(self)
+        self.entry.pack()
+        self.entry.focus_set()
+    
+        self.label = tk.Label(self, text= 'Enter Ticket Number')
+        self.label.pack()
+        self.entry = tk.Entry(self)
         self.entry.pack()
         self.entry.focus_set()
         
-        enter_button = ttk.Button(self, text='Enter')#, command= lambda: controller.)
+        self.label = tk.Label(self, text= 'Enter Description')
+        self.label.pack()
+        self.entry = tk.Entry(self)
+        self.entry.pack()
+        self.entry.focus_set()
+        
+        self.label = tk.Label(self, text= 'Enter Requesting DDO')
+        self.label.pack()
+        self.entry = tk.Entry(self)
+        self.entry.pack()
+        self.entry.focus_set()
+        
+        self.label = tk.Label(self, text= 'Enter Requisitioner Name')
+        self.label.pack()
+        self.entry = tk.Entry(self)
+        self.entry.pack()
+        self.entry.focus_set()
+        
+        self.label = tk.Label(self, text= 'Enter Requisition ID')
+        self.label.pack()
+        self.entry = tk.Entry(self)
+        self.entry.pack()
+        self.entry.focus_set()
+        
+        enter_button = tk.Button(self, text='Enter')#, command= lambda: controller.)
         enter_button.pack()
         
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button = tk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
         
-        quit_button = ttk.Button(self, text='Exit', command= self.destroy)
-        quit_button.pack()
+#         quit_button = ttk.Button(self, text='Exit', command= self.destroy)
+#         quit_button.pack()
 
     
 class SearchPage(tk.Frame):
@@ -132,23 +158,23 @@ class SearchPage(tk.Frame):
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="What Would You Like to Search?", font=LARGE_FONT)
+        label = tk.Label(self, text="What Would You Like to Search?", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
         
-        req_button = ttk.Button(self, text='Go To Req Search', command= lambda: controller.show_frame(ReqPage))
+        req_button = tk.Button(self, text='Go To Req Search', command= lambda: controller.show_frame(ReqPage))
         req_button.pack()
                                   
-        po_button = ttk.Button(self, text='Go To PO Search', command= lambda: controller.show_frame(PoPage))
+        po_button = tk.Button(self, text='Go To PO Search', command= lambda: controller.show_frame(PoPage))
         po_button.pack()
         
-        rec_button = ttk.Button(self, text='Go To Receipt Search', command= lambda: controller.show_frame(RecPage))
+        rec_button = tk.Button(self, text='Go To Receipt Search', command= lambda: controller.show_frame(RecPage))
         rec_button.pack()
         
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button = tk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
         
-        quit_button = ttk.Button(self, text='Exit', command= self.destroy)
-        quit_button.pack()
+#         quit_button = ttk.Button(self, text='Exit', command= self.destroy)
+#         quit_button.pack()
 
 
 class ReqPage(tk.Frame):
@@ -156,24 +182,24 @@ class ReqPage(tk.Frame):
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="Receipt Search", font=LARGE_FONT)
+        label = tk.Label(self, text="Receipt Search", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
         
-        entry = ttk.Entry(self, text= 'Enter Requisition ID: ')
+        entry = tk.Entry(self, text= 'Enter Requisition ID: ')
         entry.pack()
         entry.focus_set()
         
-        req_button = ttk.Button(self, text='Search Requisition')#, command= lambda: controller.)
+        req_button = tk.Button(self, text='Search Requisition')#, command= lambda: controller.)
         req_button.pack()
         
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
+        back_button = tk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
         back_button.pack()
         
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button = tk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
         
-        quit_button = ttk.Button(self, text='Exit', command= self.destroy)
-        quit_button.pack()
+#         quit_button = ttk.Button(self, text='Exit', command= self.destroy)
+#         quit_button.pack()
         
         
 class PoPage(tk.Frame):
@@ -181,24 +207,24 @@ class PoPage(tk.Frame):
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="PO Search", font=LARGE_FONT)
+        label = tk.Label(self, text="PO Search", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
         
-        entry = ttk.Entry(self, text= 'Enter PO ID: ')
+        entry = tk.Entry(self, text= 'Enter PO ID: ')
         entry.pack()
         entry.focus_set()
         
-        po_button = ttk.Button(self, text='Search PO')#, command= lambda: controller.)
+        po_button = tk.Button(self, text='Search PO')#, command= lambda: controller.)
         po_button.pack()
         
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
+        back_button = tk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
         back_button.pack()
         
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button = tk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
         
-        quit_button = ttk.Button(self, text='Exit', command= self.destroy)
-        quit_button.pack()
+#         quit_button = ttk.Button(self, text='Exit', command= self.destroy)
+#         quit_button.pack()
         
         
 class RecPage(tk.Frame):
@@ -206,52 +232,50 @@ class RecPage(tk.Frame):
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="Receipt Search", font=LARGE_FONT)
+        label = tk.Label(self, text="Receipt Search", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
         
-        entry = ttk.Entry(self, text= 'Enter Receipt ID: ')
+        entry = tk.Entry(self, text= 'Enter Receipt ID: ')
         entry.pack()
         entry.focus_set()
         
-        rec_button = ttk.Button(self, text='Search Receipt')#, command= lambda: controller.)
+        rec_button = tk.Button(self, text='Search Receipt')#, command= lambda: controller.)
         rec_button.pack()
         
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
+        back_button = tk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
         back_button.pack()
         
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button = tk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
         
-        quit_button = ttk.Button(self, text='Exit', command= self.destroy)
-        quit_button.pack()
+#         quit_button = ttk.Button(self, text='Exit', command= self.destroy)
+#         quit_button.pack()
 
         
-class  QuitDialog():
+# class  QuitDialog():
 
-    def __init__(self, instance):
+#     def __init__(self, instance):
 
-        self.instance = instance
+#         self.instance = instance
 
-        self.quitDialog = tk.Toplevel()
+#         self.quitDialog = tk.Toplevel()
 
-        warnMessage = tk.Label(master=self.quitDialog,
-                                text='Are you sure that you want to quit? ').grid(row=1, column=1, columnspan=2)
-        quitButton = tk.Button(master= self.quitDialog ,
-                                text='Yes',
-                                command = self.quitALL).grid(row=2, column=1)
-        cancelButton = tk.Button(master= self.quitDialog,
-                                text='No',
-                                command = lambda: self.quitDialog.destroy()).grid(row=2, column=2)
+#         warnMessage = tk.Label(master=self.quitDialog,
+#                                 text='Are you sure that you want to quit? ').grid(row=1, column=1, columnspan=2)
+#         quitButton = tk.Button(master= self.quitDialog ,
+#                                 text='Yes',
+#                                 command = self.quitALL).grid(row=2, column=1)
+#         cancelButton = tk.Button(master= self.quitDialog,
+#                                 text='No',
+#                                 command = lambda: self.quitDialog.destroy()).grid(row=2, column=2)
 
-    def start(self):
-        # self.invalidDiag.grab_set() #takes control over the dialog (makes it active)
-        self.quitDialog.wait_window()
+#     def start(self):
+#         # self.invalidDiag.grab_set() #takes control over the dialog (makes it active)
+#         self.quitDialog.wait_window()
 
-    def quitALL(self):
-        self.quitDialog.destroy()
-        self.instance.destroy(self)
+#     def quitALL(self):
+#         self.quitDialog.destroy()
+#         self.instance.destroy(self)
 
 app = P2P_Gui()
 app.mainloop()
-
-
