@@ -3,6 +3,7 @@
 import pandas as pd
 from pandas import Series, DataFrame
 import numpy as np
+import csv
 import tkinter as tk
 
 LARGE_FONT= ("Verdana", 12)
@@ -109,41 +110,41 @@ class EntryPage(tk.Frame):
 
         self.label = tk.Label(self, text= 'Enter Purchase Type (HW, SW, SVC, POCN)')
         self.label.pack()
-        self.entry = tk.Entry(self)
-        self.entry.pack()
-        self.entry.focus_set()
+        self.entry1 = tk.Entry(self)
+        self.entry1.pack()
+        self.entry1.focus_set()
     
         self.label = tk.Label(self, text= 'Enter Ticket Number')
         self.label.pack()
-        self.entry = tk.Entry(self)
-        self.entry.pack()
-        self.entry.focus_set()
+        self.entry2 = tk.Entry(self)
+        self.entry2.pack()
+        self.entry2.focus_set()
         
         self.label = tk.Label(self, text= 'Enter Description')
         self.label.pack()
-        self.entry = tk.Entry(self)
-        self.entry.pack()
-        self.entry.focus_set()
+        self.entry3 = tk.Entry(self)
+        self.entry3.pack()
+        self.entry3.focus_set()
         
         self.label = tk.Label(self, text= 'Enter Requesting DDO')
         self.label.pack()
-        self.entry = tk.Entry(self)
-        self.entry.pack()
-        self.entry.focus_set()
+        self.entry4 = tk.Entry(self)
+        self.entry4.pack()
+        self.entry4.focus_set()
         
         self.label = tk.Label(self, text= 'Enter Requisitioner Name')
         self.label.pack()
-        self.entry = tk.Entry(self)
-        self.entry.pack()
-        self.entry.focus_set()
+        self.entry5 = tk.Entry(self)
+        self.entry5.pack()
+        self.entry5.focus_set()
         
         self.label = tk.Label(self, text= 'Enter Requisition ID')
         self.label.pack()
-        self.entry = tk.Entry(self)
-        self.entry.pack()
-        self.entry.focus_set()
+        self.entry6 = tk.Entry(self)
+        self.entry6.pack()
+        self.entry6.focus_set()
         
-        enter_button = tk.Button(self, text='Enter')#, command= lambda: controller.)
+        enter_button = tk.Button(self, text='Enter', command= self.write_file)
         enter_button.pack()
         
         home_button = tk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
@@ -151,6 +152,14 @@ class EntryPage(tk.Frame):
         
 #         quit_button = ttk.Button(self, text='Exit', command= self.destroy)
 #         quit_button.pack()
+
+    def write_file(self):
+        with open ('C:\\Users\\TWALTON\\Desktop\\MRONSTEROIDS.csv', 'a') as f:
+            w = csv.writer(f, quoting=csv.QUOTE_ALL)
+            w.writerow([self.entry1.get(), self.entry2.get(), self.entry3.get(), 
+                        self.entry4.get(), self.entry5.get(), self.entry6.get()])
+            f.to_csv('C:\\Users\\TWALTON\\Desktop\\MRONSTEROIDS.csv', sep=',', mode='w', encoding='utf-8', index=False)
+            
 
     
 class SearchPage(tk.Frame):
