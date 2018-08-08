@@ -80,8 +80,8 @@ class MessageBoxes(P2P_Gui):
         no_button.pack(side='right')
 
         check_popup.mainloop()
-
         
+            
 class HomePage(tk.Frame, MessageBoxes):
 
     def __init__(self, parent, controller):
@@ -221,21 +221,54 @@ class ReqPage(tk.Frame):
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="Receipt Search", font=LARGE_FONT)
+        label = ttk.Label(self, text="Requisition Search", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
         
-        entry = ttk.Entry(self, text= 'Enter Requisition ID: ')
-        entry.pack()
-        entry.focus_set()
+        self.req_entry = ttk.Entry(self, text= 'Enter Requisition ID: ')
+        self.req_entry.pack()
+        self.req_entry.focus_set()
         
-        req_button = ttk.Button(self, text='Search Requisition')#, command= lambda: controller.)
+        req_button = ttk.Button(self, text='Search Requisition', command=self.req_search)
         req_button.pack()
+        
+        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
+        clear_button.pack()
         
         back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
         back_button.pack()
         
         home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
+        
+    def req_search(self):
+        
+        window = tk.Tk()
+        window.geometry('1000x500')
+            
+        frame = tk.Frame(window)
+        frame.pack()
+        
+        req_df = pd.read_csv(r'C:\\Users\\TWALTON\\Desktop\\p2p_all_ddo\\MRONSTEROIDS.csv')
+        pd.options.display.max_columns = None
+        pd.set_option('display.max_colwidth', -1)
+        req_df = req_df.applymap(str)
+        req_output = req_df.loc[req_df['Requisition ID'] == self.req_entry.get()]
+        
+        scrolly = ttk.Scrollbar(frame, orient='vertical')
+        scrollx = ttk.Scrollbar(frame, orient='horizontal')
+        scrolly.pack(side='right', fill='y')
+        scrollx.pack(side='bottom', fill='x')
+        
+        self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
+        self.t1.config(wrap='none')
+        self.t1.pack(fill='both', expand=True)
+        self.t1.insert(tk.END,req_output)
+        
+        scrolly.config(command=self.t1.yview)
+        scrollx.config(command=self.t1.xview)
+        
+    def clear_textbox(self):
+        self.req_entry.delete(0, 'end')
         
         
 class PoPage(tk.Frame):
