@@ -39,3 +39,30 @@ p2p_df1 = p2p_df[['Requisitioner Name','Requisition ID', 'Requisition Date', 'Re
 
 requisitioner_list = ['Robinson Debra', 'Walton Timothy', 'Rhoads Jay', 'Garcia Karen', 'Birdwell Diana']
 p2p_imd_req = p2p_df1[p2p_df1['Requisitioner Name'].isin(requisitioner_list)]
+
+#    Merge two dataframes on the column 'Requisition ID', requisition values that are not in both dataframes will be dropped
+
+pd.merge(df1, df2, on='Requisition ID')
+
+# Created variable to display all rows if the Total PO Amount and Total Amount Received columns are not equal
+
+need_receipt = p2p_imd_req.loc[p2p_imd_req['Total PO Amount'] != p2p_imd_req['Total Amount Received']]
+
+#    Attempting to create graphs using Pandas or Matplotlib, not sure which one I'm calling
+
+ddo_po_amount = p2p_1po.groupby(['DDO PO'])['PO Amount'].sum().astype('int64')
+ddo_po_amount.plot(x='DDO PO', y='PO Amount', kind='bar', figsize= (15,7), logy=True)
+
+req_to_po = p2p_1po.groupby(['DDO PO'])['Requisition to PO Date'].mean().astype('int64')
+req_to_po.plot(x='DDO PO', y='Requisition to PO Date', kind='bar', figsize= (15,5))
+
+po_to_receipt = p2p_1po.groupby(['DDO PO'])['PO to Receipt'].mean().astype('int64')
+po_to_receipt.plot(x='DDO PO', y='PO to Receipt', kind='bar', figsize= (15,5))
+
+vendor_amount = p2p_imd_req.groupby(['PO Vendor Name'])['PO Number'].count()
+vendor_amount = p2p_imd_req.groupby(['PO Vendor Name'])['PO Amount'].sum().astype('int64')
+vendor_amount.plot(x='PO Vendor Name', y='PO Amount', kind='bar', figsize= (40,10), logy=True, fontsize=5, rot=60)
+
+# Attempting to display vendors with po totals > 1,000,000
+
+vendor_str = vendor_amount.loc[(vendor_amount > 1000000)]
