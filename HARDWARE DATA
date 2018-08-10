@@ -1,0 +1,64 @@
+import pandas as pd
+import numpy as np
+
+txdotnowdf = pd.read_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\txdotnowhwdata.csv', encoding='windows-1252')
+ubbdf = pd.read_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\UBBReport080918.csv', encoding='windows-1252')
+
+pd.options.display.max_columns = None
+
+txdotnowdf.columns
+txdotnowdf.dtypes
+ubbdf.columns
+
+txdotnowdf = txdotnowdf.rename({'ci':'CI','serial_number':'Serial Number','asset_tag':'Asset Tag','assigned_to.u_ad_lastlogon':'Last Log On',
+                   'assigned_to.first_name':'First Name','assigned_to.last_name':'Last Name','assigned_to.user_name':'User Name', 
+                   'sys_class_name':'Class Name','po_number':'PO Number','warranty_expiration':'Warranty Expiration',
+                   'model.display_name':'Display Name','sys_created_on':'Created On','install_status':'Install Status',
+                   'substatus':'Sub Status','ci.install_status':'CI Install Staus'}, axis='columns')
+
+ubbdf = ubbdf.rename({'Name0':'Name','SerialNumber00':'Serial Number','Manufacturer00':'Manufacturer','Model00':'Model',
+                      'ChassisTypes00':'Chassis Type','Full_User_Name0':'Full User Name','Unique_User_Name0':'Unique User Name',
+                      'Mail0':'Mail','LastBootUpTime00':'Last Boot Up Time','LastHWScan':'Last HW Scan',
+                      'LastUpdateDate':'Last Update Date'}, axis='columns')
+
+exclude_models = ['VMware Virtual Platform','428757U','DSDT_PRJ','CBX3___','SLIC-BPC',
+                                 '\x16','Surface Pro 4','Surface Book','CF-53AAGZX1M','Surface Pro 3',
+                                  'CF-53AAGZX1M','Surface Pro 3','Virtual Machine','VMware7,1', '424049U','VS663UT']
+
+pc_class = ['Engineering Desktop','Engineering Laptop','Lightweight Laptop',
+            'Executive Laptop','Standard Laptop','Standard Desktop','Rugged Laptop']
+
+models = ['Precision M4800', 'HP Compaq 8200 Elite CMT PC',
+       'HP Compaq 8100 Elite CMT PC', 'Precision M4700', 'Latitude E5540',
+       'Latitude E5530 vPro', 'HP Z800 Workstation',
+       'HP xw4600 Workstation', 'Evo D510 CMT', 'Precision T5600',
+       'Latitude 6430U', 'HP Compaq dc7800 Convertible Minitower',
+       'HP Compaq dc7900 Convertible Minitower', 'HP Z400 Workstation',
+       'OptiPlex 7010', 'Precision M6500', 'OptiPlex 745',
+       'Latitude E6420', 'Precision T5610', 'Latitude E7440',
+       'HP Compaq dc7900 Small Form Factor',
+       'Latitude 14 Rugged Extreme (7404)', 'HP Compaq 8200 Elite SFF PC',
+       'Latitude E7450', 'Precision Tower 5810', 'XPS13 9333',
+       'Latitude E5530 non-vPro', 'HP EliteBook 8560w',
+       'HP Compaq Elite 8300 CMT', 'HP ProBook 4720s',
+       'HP Compaq 8100 Elite SFF PC', 'Latitude E5550', 'OptiPlex 7020',
+       'XPS 13 9350', 'Precision 7510', 'Latitude E5570',
+       'Precision Tower 7910', 'OptiPlex 5040', 'Latitude E7470',
+       'HP Z600 Workstation', 'Latitude E6530', 'Latitude 7414',
+       'Latitude 5285', 'Latitude 5289', 'Latitude 5580',
+       'Latitude E6430', 'Precision 7520', 'OptiPlex 5050',
+       'Latitude D830', 'Latitude 7212 Rugged Extreme Tablet',
+       'Precision 5820 Tower', 'Latitude 7480', 'Latitude 5480']
+
+ubbdf1 = ubbdf[~ubbdf['Model'].isin(exclude_models)]
+ubbdf1['PC Class'] = ''
+
+ubbdf1['Last Boot Up Time'] = pd.to_datetime(ubbdf1['Last Boot Up Time']).dt.date
+ubbdf1['Last HW Scan'] = pd.to_datetime(ubbdf1['Last HW Scan']).dt.date
+ubbdf1['Last Update Date'] = pd.to_datetime(ubbdf1['Last Update Date']).dt.date
+
+ubbdf1['Model'].unique()
+ubbdf1.dtypes
+
+mask = (ubbdf1['Last Boot Up Time'] > '2018-07-01')
+mask
