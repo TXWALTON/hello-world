@@ -6,10 +6,6 @@ ubbdf = pd.read_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\UBBReport080918.csv',
 
 pd.options.display.max_columns = None
 
-txdotnowdf.columns
-txdotnowdf.dtypes
-ubbdf.columns
-
 txdotnowdf = txdotnowdf.rename({'ci':'CI','serial_number':'Serial Number','asset_tag':'Asset Tag','assigned_to.u_ad_lastlogon':'Last Log On',
                    'assigned_to.first_name':'First Name','assigned_to.last_name':'Last Name','assigned_to.user_name':'User Name', 
                    'sys_class_name':'Class Name','po_number':'PO Number','warranty_expiration':'Warranty Expiration',
@@ -50,6 +46,8 @@ models = ['Precision M4800', 'HP Compaq 8200 Elite CMT PC',
        'Latitude D830', 'Latitude 7212 Rugged Extreme Tablet',
        'Precision 5820 Tower', 'Latitude 7480', 'Latitude 5480']
 
+status = ['Retired','Absent','Stolen','disposed','lost','stolen','sold','reserved','pending_disposal','Missing']
+
 ubbdf1 = ubbdf[~ubbdf['Model'].isin(exclude_models)]
 ubbdf1['PC Class'] = ''
 
@@ -57,8 +55,16 @@ ubbdf1['Last Boot Up Time'] = pd.to_datetime(ubbdf1['Last Boot Up Time']).dt.dat
 ubbdf1['Last HW Scan'] = pd.to_datetime(ubbdf1['Last HW Scan']).dt.date
 ubbdf1['Last Update Date'] = pd.to_datetime(ubbdf1['Last Update Date']).dt.date
 
-ubbdf1['Model'].unique()
-ubbdf1.dtypes
+txdotnowdf[~txdotnowdf['Install Status'].isin(status)]
+txdotnowdf[~txdotnowdf['Sub Status'].isin(status)]
+txdotnowdf[~txdotnowdf['CI Install Staus'].isin(status)]
 
-mask = (ubbdf1['Last Boot Up Time'] > '2018-07-01')
-mask
+txdotnowdf['Install Status'].unique()
+txdotnowdf['Sub Status'].unique()
+txdotnowdf['CI Install Staus'].unique()
+
+ubbdf1['Last Boot Up Time'] = pd.to_datetime(ubbdf1['Last Boot Up Time'])
+mask = (ubbdf1['Last Boot Up Time'] > '2018-08-01') & (ubbdf1['Last Boot Up Time'] <= '2018-08-08')
+recent_login = ubbdf1.loc[mask]
+hp_devices = recent_login[recent_login['Model'].str.contains('HP')]
+hp_devices
