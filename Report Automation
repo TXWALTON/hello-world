@@ -4,11 +4,15 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+import time
+import pandas as pd
+import numpy as np
 
 p2p_url = 'https://fin.txdot.gov/psp/psfinpd/EMPLOYEE/ERP/c/X_PO_TXDOT_MENU.X_PO_REQ_VCH_CMP.GBL?Folder=MYFAVORITES'
 
 driver = webdriver.Chrome()
 driver.get(p2p_url)
+main_window = driver.current_window_handle
 
 enter_user = driver.find_element_by_id('userid')
 enter_user.send_keys('TWALTON')
@@ -28,12 +32,50 @@ driver.find_element_by_css_selector('.PSPUSHBUTTONTBSEARCH').click()
 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="PRCSRQSTDLG_WRK_LOADPRCSRQSTDLGPB"]')))
 driver.find_element_by_css_selector('.PSPUSHBUTTON').click()
 
+time.sleep(1)
 driver.switch_to_default_content()
 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ptModFrame_0"]')))
 driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="ptModFrame_0"]'))
-driver.find_element_by_css_selector('.PSPUSHBUTTONTBOK').click()
+driver.find_element_by_css_selector('.PSPUSHBUTTONTBCANCEL').click()
 
+time.sleep(1)
 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ptifrmtgtframe"]')))
 driver.switch_to_default_content()
 driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
 driver.find_element_by_id('PRCSRQSTDLG_WRK_LOADRPTLIST').click()
+
+time.sleep(1)
+driver.switch_to_default_content()
+driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ICTAB_2"]')))
+driver.find_element_by_xpath('//*[@id="ICTAB_2"]').click()
+
+time.sleep(10)
+driver.find_element_by_xpath('//*[@id="CDM_WRK_REFRESH_BTN"]').click()
+time.sleep(10)
+driver.find_element_by_xpath('//*[@id="CDM_WRK_REFRESH_BTN"]').click()
+time.sleep(10)
+driver.find_element_by_xpath('//*[@id="CDM_WRK_REFRESH_BTN"]').click()
+time.sleep(5)
+driver.find_element_by_xpath('//*[@id="CONTENT_LINK$0"]').click()
+
+i = driver.find_element_by_id('CDM_LIST_VW_PRCSINSTANCE$0').text
+
+df1 = pd.read_csv(r'C:\Users\TWALTON\Downloads\xpo005r_%s.csv' % i, skiprows=[1], header=[1], 
+                  encoding='windows-1252', dtype='str', na_values=[' ', '=" "'])
+
+pd.options.display.max_columns = None
+
+for f, col in enumerate(df1.columns):
+    df1.iloc[:, f] = df1.iloc[:, f].str.replace('"','')
+    
+for e, col in enumerate(df1.columns):
+    df1.iloc[:, e] = df1.iloc[:, e].str.replace('=','')
+    
+df1.to_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\p2pautoreport1.csv')
+    
+df1.head()
+
+# Script for saving file - not sure if it works
+# driver.send_keys(Keys.chord(Keys.CONTROL, 's'))
+# driver.switch_to_window(main_window)
