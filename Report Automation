@@ -79,3 +79,174 @@ df1.head()
 # Script for saving file - not sure if it works
 # driver.send_keys(Keys.chord(Keys.CONTROL, 's'))
 # driver.switch_to_window(main_window)
+
+
+# TXDOTNow loop that searches for requisition number and adds it to a dataframe column
+# Peoplesoft loop that runs PO report from requisition numbers in dataframe
+
+df = pd.read_csv(r'C:\Users\TWALTON\Desktop\myworkpendingpo.csv', dtype=str)
+df['Requisition ID'] = ''
+
+p2p_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\COPYP2PJAN17TOAUG18.csv', thousands=',',
+                             skiprows=[1], header=[1], encoding='windows-1252', dtype='str')
+
+class TXDOTNow():
+
+    def __init__(self):
+        
+        self.setup()
+        self.txdotnow_login()
+        self.task_search()
+        
+    def setup(self):
+        
+        txdotnow_url = 'https://txdotnow.service-now.com/'
+        self.tx_driver = webdriver.Chrome()
+        self.tx_driver.get(txdotnow_url)
+
+    def txdotnow_login(self):
+        
+        self.tx_driver.switch_to.frame(self.tx_driver.find_element_by_xpath('//*[@id="gsft_main"]'))
+        enter_user = self.tx_driver.find_element_by_id('user_name')
+        enter_user.send_keys('TWALTON')
+        
+        time.sleep(1)
+        
+        enter_password = self.tx_driver.find_element_by_id('user_password')
+        enter_password.send_keys('Cowboy_26')
+        self.tx_driver.find_element_by_css_selector('.pull-right.btn.btn-primary').click()
+        
+    def task_search(self):
+        
+        tickets=[]
+        for task in df['number']:
+            tickets.append(task)
+            
+        row = 0
+        for ticket in tickets:
+            
+            self.tx_driver.switch_to.default_content()
+            WebDriverWait(self.tx_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sysparm_search"]')))
+            self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').send_keys(ticket)
+            
+            time.sleep(1)
+            
+            self.tx_driver.find_element_by_css_selector('.form-control.form-control-search').send_keys(u'\ue007')
+            self.tx_driver.switch_to.frame(self.tx_driver.find_element_by_xpath('//*[@id="gsft_main"]'))
+            
+            time.sleep(1)
+            
+            found = False
+            while not found:
+                try:
+                    req_entry = self.tx_driver.find_element_by_xpath('//*[@id="sc_task.u_peoplesoft_erq"]')
+                    if req_entry.is_displayed():
+                        req_field = self.tx_driver.find_element_by_xpath('//*[@id="sc_task.u_peoplesoft_erq"]').get_attribute('value')
+                        df.loc[row, 'Requisition ID'] = req_field
+                        row += 1
+                        self.tx_driver.switch_to.default_content()
+                        self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').clear()
+                        found = True
+                except NoSuchElementException:
+                    found = True
+            continue
+                
+        df.to_csv(r'C:\Users\TWALTON\Desktop\taskautotest.csv', encoding='windows-1252', index=False)
+        self.tx_driver.close()
+       
+    
+class Peoplesoft():
+
+    def __init__(self):
+
+        self.setup()
+        self.ppl_login()
+        self.merge_df()
+        self.po_print()
+        
+    def setup(self):
+        
+        p2p_url = 'https://fin.txdot.gov/psp/psfinpd/EMPLOYEE/ERP/c/MANAGE_PURCHASE_ORDERS.TX_RUN_TXCPO001.GBL?Folder=MYFAVORITES'
+        self.ppl_driver = webdriver.Chrome()
+        self.ppl_driver.get(p2p_url)
+
+    def ppl_login(self):
+        
+        self.ppl_driver.switch_to.default_content()
+        enter_user = self.ppl_driver.find_element_by_id('userid')
+        enter_user.send_keys('TWALTON')
+        
+        time.sleep(1)
+        
+        enter_password = self.ppl_driver.find_element_by_id('pwd')
+        enter_password.send_keys('Cowboy_26')
+        
+        self.ppl_driver.find_element_by_css_selector('#login > div > div.ps_signinentry > div:nth-child(8) > input').click()
+        
+    def merge_df(self):
+        
+        df['Requisition ID'] = df['Requisition ID'].str[5:]
+        self.merge_df = df.merge(p2p_df, on=['Requisition ID'])
+        self.merge_df = self.merge_df[['number', 'Requisition ID', 'PO Number_y']]
+        self.merge_df = self.merge_df[np.notnull(df['PO Number_y'])]
+        
+    def po_print(self):
+        
+        for po in self.merge_df['PO Number_y']:
+            
+            time.sleep(2)
+            
+            self.ppl_driver.switch_to.default_content()
+            self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+            self.ppl_driver.find_element_by_css_selector('#RUN_CNTL_PUR_RUN_CNTL_ID').send_keys('PO_AUTO')
+            self.ppl_driver.find_element_by_xpath('//*[@id="#ICSearch"]').click()
+            
+            time.sleep(1)
+            
+            self.ppl_driver.switch_to.default_content()
+            self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+            
+            time.sleep(1)
+            
+            self.ppl_driver.find_element_by_xpath('//*[@id="RUN_CNTL_PUR_PO_ID"]').clear()
+            self.ppl_driver.find_element_by_xpath('//*[@id="RUN_CNTL_PUR_PO_ID"]').send_keys('00000'+po)
+            self.ppl_driver.find_element_by_xpath('//*[@id="PRCSRQSTDLG_WRK_LOADPRCSRQSTDLGPB"]').click()
+
+            time.sleep(1)
+
+            self.ppl_driver.switch_to.default_content()
+            self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptModFrame_0"]'))
+            self.ppl_driver.find_element_by_xpath('//*[@id="#ICSave"]').click()
+            
+            time.sleep(3)
+            
+            self.ppl_driver.switch_to.default_content()
+            self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+            self.ppl_driver.find_element_by_xpath('//*[@id="PRCSRQSTDLG_WRK_LOADRPTLIST"]').click()
+            
+            time.sleep(10)
+            
+            self.ppl_driver.switch_to.default_content()
+            self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+            self.ppl_driver.find_element_by_xpath('//*[@id="ICTAB_2"]').click()
+            
+            time.sleep(5)
+            
+            self.ppl_driver.switch_to.default_content()
+            self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+            self.ppl_driver.find_element_by_xpath('//*[@id="CDM_WRK_REFRESH_BTN"]').click()
+            
+            time.sleep(5)
+            
+            self.ppl_driver.find_element_by_xpath('//*[@id="CDM_WRK_REFRESH_BTN"]').click()
+            
+            time.sleep(1)
+            
+            self.ppl_driver.find_element_by_xpath('//*[@id="CONTENT_LINK$0"]').click()
+            self.setup()
+            self.ppl_login()
+        self.ppl_driver.close()
+            
+
+txauto = TXDOTNow()
+pplauto = Peoplesoft()
