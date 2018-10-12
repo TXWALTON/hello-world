@@ -148,6 +148,9 @@ class TXDOTNow():
                         self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').clear()
                         found = True
                 except NoSuchElementException:
+                    row += 1
+                    self.tx_driver.switch_to.default_content()
+                    self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').clear()
                     found = True
             continue
                 
