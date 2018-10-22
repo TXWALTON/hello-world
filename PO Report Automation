@@ -1,81 +1,3 @@
-import webbrowser as wb
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-import time
-import pandas as pd
-import numpy as np
-
-p2p_url = 'https://fin.txdot.gov/psp/psfinpd/EMPLOYEE/ERP/c/X_PO_TXDOT_MENU.X_PO_REQ_VCH_CMP.GBL?Folder=MYFAVORITES'
-
-driver = webdriver.Chrome()
-driver.get(p2p_url)
-main_window = driver.current_window_handle
-
-enter_user = driver.find_element_by_id('userid')
-enter_user.send_keys('TWALTON')
-
-enter_password = driver.find_element_by_id('pwd')
-enter_password.send_keys('Cowboy_26')
-
-driver.find_element_by_css_selector('.ps-button').click()
-
-WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ptifrmtgtframe"]')))
-driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
-
-enter_control = driver.find_element_by_xpath('//*[@id="X_PO_RQVC_RNCTL_RUN_CNTL_ID"]')
-enter_control.send_keys('P2P_IMD')
-driver.find_element_by_css_selector('.PSPUSHBUTTONTBSEARCH').click()
-
-WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="PRCSRQSTDLG_WRK_LOADPRCSRQSTDLGPB"]')))
-driver.find_element_by_css_selector('.PSPUSHBUTTON').click()
-
-time.sleep(1)
-driver.switch_to_default_content()
-WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ptModFrame_0"]')))
-driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="ptModFrame_0"]'))
-driver.find_element_by_css_selector('.PSPUSHBUTTONTBCANCEL').click()
-
-time.sleep(1)
-WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ptifrmtgtframe"]')))
-driver.switch_to_default_content()
-driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
-driver.find_element_by_id('PRCSRQSTDLG_WRK_LOADRPTLIST').click()
-
-time.sleep(1)
-driver.switch_to_default_content()
-driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
-WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ICTAB_2"]')))
-driver.find_element_by_xpath('//*[@id="ICTAB_2"]').click()
-
-time.sleep(10)
-driver.find_element_by_xpath('//*[@id="CDM_WRK_REFRESH_BTN"]').click()
-time.sleep(10)
-driver.find_element_by_xpath('//*[@id="CDM_WRK_REFRESH_BTN"]').click()
-time.sleep(10)
-driver.find_element_by_xpath('//*[@id="CDM_WRK_REFRESH_BTN"]').click()
-time.sleep(5)
-driver.find_element_by_xpath('//*[@id="CONTENT_LINK$0"]').click()
-
-i = driver.find_element_by_id('CDM_LIST_VW_PRCSINSTANCE$0').text
-
-df1 = pd.read_csv(r'C:\Users\TWALTON\Downloads\xpo005r_%s.csv' % i, skiprows=[1], header=[1], 
-                  encoding='windows-1252', dtype='str', na_values=[' ', '=" "'])
-
-pd.options.display.max_columns = None
-
-for f, col in enumerate(df1.columns):
-    df1.iloc[:, f] = df1.iloc[:, f].str.replace('"','')
-    
-for e, col in enumerate(df1.columns):
-    df1.iloc[:, e] = df1.iloc[:, e].str.replace('=','')
-    
-df1.to_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\p2pautoreport1.csv')
-    
-df1.head()
-
 # Script for saving file - not sure if it works
 # driver.send_keys(Keys.chord(Keys.CONTROL, 's'))
 # driver.switch_to_window(main_window)
@@ -92,30 +14,35 @@ p2p_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\COPYP2PJAN
 
 class TXDOTNow():
 
+# initiating method that runs all methods
     def __init__(self):
         
         self.setup()
         self.txdotnow_login()
         self.task_search()
         
+# setting up chromedriver       
     def setup(self):
         
         txdotnow_url = 'https://txdotnow.service-now.com/'
         self.tx_driver = webdriver.Chrome()
         self.tx_driver.get(txdotnow_url)
 
+# login information
     def txdotnow_login(self):
         
         self.tx_driver.switch_to.frame(self.tx_driver.find_element_by_xpath('//*[@id="gsft_main"]'))
         enter_user = self.tx_driver.find_element_by_id('user_name')
-        enter_user.send_keys('TWALTON')
+        enter_user.send_keys('#USERNAME')
         
         time.sleep(1)
         
         enter_password = self.tx_driver.find_element_by_id('user_password')
-        enter_password.send_keys('Cowboy_26')
+        enter_password.send_keys('#PASSWORD')
         self.tx_driver.find_element_by_css_selector('.pull-right.btn.btn-primary').click()
-        
+
+# loop that creates a ticket list from the dataframe column, searches txdotnow for the ticket, appends the requisition# to the dataframe
+# and saves the dataframe
     def task_search(self):
         
         tickets=[]
@@ -160,39 +87,45 @@ class TXDOTNow():
     
 class Peoplesoft():
 
+# initiating method that runs all methods
     def __init__(self):
 
         self.setup()
         self.ppl_login()
         self.merge_df()
         self.po_print()
-        
+
+# setting up chromedriver 
     def setup(self):
         
         p2p_url = 'https://fin.txdot.gov/psp/psfinpd/EMPLOYEE/ERP/c/MANAGE_PURCHASE_ORDERS.TX_RUN_TXCPO001.GBL?Folder=MYFAVORITES'
         self.ppl_driver = webdriver.Chrome()
         self.ppl_driver.get(p2p_url)
 
+# login information
     def ppl_login(self):
         
         self.ppl_driver.switch_to.default_content()
         enter_user = self.ppl_driver.find_element_by_id('userid')
-        enter_user.send_keys('TWALTON')
+        enter_user.send_keys('#USERNAME')
         
         time.sleep(1)
         
         enter_password = self.ppl_driver.find_element_by_id('pwd')
-        enter_password.send_keys('Cowboy_26')
+        enter_password.send_keys('#PASSWORD')
         
         self.ppl_driver.find_element_by_css_selector('#login > div > div.ps_signinentry > div:nth-child(8) > input').click()
-        
+
+# merges txdotnow dataframe with peoplesoft po dataframe on the requisition ID.  
+# This is to capture requisitions with recently issued PO#s
     def merge_df(self):
         
         df['Requisition ID'] = df['Requisition ID'].str[5:]
         self.merge_df = df.merge(p2p_df, on=['Requisition ID'])
         self.merge_df = self.merge_df[['number', 'Requisition ID', 'PO Number_y']]
         self.merge_df = self.merge_df[np.notnull(df['PO Number_y'])]
-        
+
+# Auto PO pdf report for PO#s in the merged dataframe
     def po_print(self):
         
         for po in self.merge_df['PO Number_y']:
