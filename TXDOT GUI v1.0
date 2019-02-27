@@ -62,7 +62,6 @@ ppt_df = ppt_df[['Current Status', 'Requester', 'Title', 'Task Number', 'Type of
                 'Expiration Date', 'Number Days to Expire', 'Requisition', 'Req Date', 'Number Days Pending PO', 
                 'PRO Buyer', 'PRO ETA Date', 'Number Days PRO ETA Date', 'PRO ETA Notes', 'Comments']]
 
-
 LARGE_FONT= ("Verdana", 12)
     
 
@@ -192,6 +191,7 @@ class HomePage(tk.Frame, MessageBoxes):
         
         tk.Frame.__init__(self,parent)
         label = ttk.Label(self, text='Atlas v1.3', font=LARGE_FONT)
+        
         label.pack(pady=10,padx=10)
         self.controller = controller
         
@@ -206,6 +206,9 @@ class HomePage(tk.Frame, MessageBoxes):
 
         data_button = ttk.Button(self, text='Update Data', command=self.update_data)
         data_button.pack()
+        
+        login_button = ttk.Button(self, text='Login', command= lambda: controller.show_frame(LoginPage))
+        login_button.pack()
         
         login_button = ttk.Button(self, text='Login', command= lambda: controller.show_frame(LoginPage))
         login_button.pack()
@@ -422,12 +425,13 @@ class EntryPage(tk.Frame, MessageBoxes):
     def write_file(self):
         
         with open ('T:\\IMD Sourcing\\Atlas App\\Data\\atlasentry.csv', 'a', newline='') as f:
+        
             w = csv.writer(f, quoting=csv.QUOTE_ALL, delimiter=',')
             
             w.writerow([self.entry1.get().upper(), self.entry2.get().upper()])
             
     def merge_file(self):
-        
+
         df1 = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasentry.csv', 
                           encoding='windows-1252', dtype=str)
         
@@ -495,7 +499,6 @@ class EntryPage(tk.Frame, MessageBoxes):
         self.merge_file()
         self.req_auto()
         self.clear_textbox()
-        
         
 class SearchPage(tk.Frame):
     
@@ -840,6 +843,7 @@ class TXDOTPage(tk.Frame):
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
+
         label = ttk.Label(self, text="Search TXDOTNow", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
         self.controller = controller
@@ -888,13 +892,36 @@ class TXDOTPage(tk.Frame):
         driver.find_element_by_css_selector('.form-control.form-control-search').send_keys(u'\ue007')
 
     def clear_textbox(self):
+
         self.txdot_entry.delete(0, 'end')
+
 
 class PPTPage(tk.Frame):
     
     def __init__(self, parent, controller):
+
+        df = pd.read_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\Test\atlasreport.csv',encoding='windows-1252'
+                             ,low_memory=False, dtype=str)
+
+        vendor_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
+            'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
+            'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
+            'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
+            'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
+            'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
+            'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
+            'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
+            'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
+            'Total PO Amount','Total Amount Received']]
+
+        vendor_df['PO Vendor Name'] = vendor_df['PO Vendor Name'].astype(str)
+
+        vendor_df1 = vendor_df.loc[vendor_df['Requisitioner Name'].isin(req_list)]
+        vendor_df2 = vendor_df1[vendor_df1['PO Number'] != ' ']
+        vendors = sorted(vendor_df2['PO Vendor Name'].unique().tolist())
         
         tk.Frame.__init__(self,parent)
+
         label = ttk.Label(self, text="Search PPT", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
         self.controller = controller
@@ -910,15 +937,26 @@ class PPTPage(tk.Frame):
         
         export_button = ttk.Button(self, text='Export', command=self.export_lookup)
         export_button.pack()
-        
-        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
-        clear_button.pack()
-        
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
+         
+        back_button = ttk.Button(self, text='           Back           ', command= lambda: controller.show_frame(SearchPage))
         back_button.pack()
         
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button = ttk.Button(self, text='          Home         ', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
+
+    def vendor_po(self):
+
+        df = pd.read_csv(r'C:\Users\TWALTON\Desktop\p2p_all_ddo\Test\atlasreport.csv',encoding='windows-1252'
+                     ,low_memory=False, dtype=str)
+
+        po_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
+            'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','PO Number','PO Date',
+            'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
+            'PO Quantity','PO Amount','PO Vendor Name']]
+
+        mask = np.column_stack([po_df[col].str.contains(self.var.get(), na=False, regex=False) for col in po_df])
+        vendor_input = po_df.loc[mask.any(axis=1)]
+        unique_po = vendor_input.drop_duplicates(subset='PO Number')
         
     def ppt_lookup(self):
         
@@ -1084,6 +1122,7 @@ class PDFPage(tk.Frame):
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
+
         label = ttk.Label(self, text="Search for PDF", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
         self.controller = controller
@@ -1106,13 +1145,13 @@ class PDFPage(tk.Frame):
         pocn_button = ttk.Button(self, text='POCN', command=self.pocn_msg)
         pocn_button.pack()
         
-        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
-        clear_button.pack()
+        bal_button = ttk.Button(self, text='Remaining Balance', command= self.remainingbal)
+        bal_button.pack()
         
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
-        back_button.pack()
+        newpo_button = ttk.Button(self, text='    New PO Issued   ', command= self.po_auto)
+        newpo_button.pack()
         
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button = ttk.Button(self, text='           Home           ', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
 
     def req_pdf(self):
@@ -1646,7 +1685,7 @@ class ReportPage(LoginPage):
             
             self.txdot_setup()
             self.txdot_login(self.controller.fetch_user, self.controller.fetch_pwd)
-
+            
             self.tx_driver.switch_to.default_content()
             WebDriverWait(self.tx_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sysparm_search"]')))
             self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').clear()
@@ -1765,7 +1804,7 @@ class ReportPage(LoginPage):
                 time.sleep(1)
                 
                 row +=1
-        
+       
 
 app = P2P_Gui()
 app.mainloop()
