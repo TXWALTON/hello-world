@@ -1,15 +1,13 @@
-# Attempt at creating a gui for a new mr entry
-
-# Attempt at creating a gui for a new mr entry
-
 import pandas as pd
 import numpy as np
 import csv
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
-from tkinter.ttk import Progressbar
-import os
+from tkinter import *
+from tkinter.ttk import *
+import os, sys, inspect
+import os.path
 import datetime
 import webbrowser as wb
 from selenium import webdriver
@@ -17,8 +15,53 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.chrome.options import Options
 import time
-import threading
+import requests
+import urllib3
+import shutil
+import glob
+
+df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252', dtype=str)
+
+pd.options.display.max_columns = None
+pd.options.display.max_rows = None
+pd.options.mode.chained_assignment = None
+pd.set_option('display.max_colwidth', -1)
+df = df.apply(lambda x: x.astype(str).str.upper())
+
+atlas_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
+            'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
+            'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
+            'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
+            'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
+            'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
+            'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
+            'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
+            'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
+            'Total PO Amount','Total Amount Received','Purchase Method']]
+
+p2p_df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\P2PAY19.csv',  thousands=',', encoding='windows-1252', dtype=str)
+p2p_df['Requisition ID'] = p2p_df['Requisition ID'].str.lstrip('0')
+        
+req_list = ['Robinson Debra', 'Walton Timothy', 'Rhoads Jay', 'Garcia Karen', 
+                      'Birdwell Diana', 'Eckert Lauren', 'Burford Angelia', 'Ruemke Melissa']
+
+pending_po = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\txdotnowticketstest.csv', encoding='windows-1252', dtype=str)
+pending_po = pending_po.rename(columns = {'number':'Ticket Number', 'ref_sc_task.u_peoplesoft_erq':'Requisition ID'})
+# pending_po = pending_po.rename(columns = {'number':'Ticket Number', 'ref_sc_task.u_peoplesoft_erq':'Requisition ID', 'ref_sc_task.u_peoplesoft_po_number':'PO Number'})
+
+auto_df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\sctaskauto.csv', dtype='str')
+
+entry_df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasentrytest.csv', encoding='windows-1252', dtype=str)
+
+ppt_df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\pptpending.csv', encoding= 'windows-1252', dtype=str)
+ppt_df = ppt_df[['Current Status', 'Requester', 'Title', 'Task Number', 'Type of Purchase', 'Project Start Date',
+                'Expiration Date', 'Number Days to Expire', 'Requisition', 'Req Date', 'Number Days Pending PO', 
+                'PRO Buyer', 'PRO ETA Date', 'Number Days PRO ETA Date', 'PRO ETA Notes', 'Comments']]
+
 
 LARGE_FONT= ("Verdana", 12)
     
@@ -29,7 +72,7 @@ class P2P_Gui(tk.Tk):
         
         tk.Tk.__init__(self, *args, **kwargs)
         
-        tk.Tk.wm_title(self, 'IMD Procurement MR Database')
+        tk.Tk.wm_title(self, 'Atlas v1.3')
         
         container = tk.Frame(self)
         container.pack(side="top", fill="both", expand = True)
@@ -39,8 +82,7 @@ class P2P_Gui(tk.Tk):
 
         self.frames = {}
         
-        for F in (HomePage, EntryPage, SearchPage, ReqPage, PoPage, RecPage, TaskPage, ReportPage, 
-                  VoucherPage, DatePage, AllPage):
+        for F in (LoginPage, HomePage, EntryPage, SearchPage, ReportPage, DatePage, AllPage, PPTPage, VendorPage, TXDOTPage, PDFPage):
 
             frame = F(container, self)
 
@@ -48,12 +90,12 @@ class P2P_Gui(tk.Tk):
 
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.show_frame(HomePage)
+        self.show_frame(LoginPage)
 
     def show_frame(self, cont):
 
         frame = self.frames[cont]
-        frame.tkraise() 
+        frame.tkraise()
 
 
 class MessageBoxes():
@@ -100,35 +142,261 @@ class MessageBoxes():
         app.destroy()
         self.close_allmessage()
         
+
+class LoginPage(tk.Frame, MessageBoxes):
+    
+    def __init__(self, parent, controller):
+        
+        tk.Frame.__init__(self,parent)
+        self.label = ttk.Label(self, text="Login", font=LARGE_FONT)
+        self.label.pack(pady=10,padx=10)
+        self.controller = controller
+        
+        self.label = ttk.Label(self, text= 'Enter Username')
+        self.label.pack()
+        self.user_entry = ttk.Entry(self)
+        self.user_entry.pack()
+        self.user_entry.focus_set()
+        
+        self.label = ttk.Label(self, text= 'Enter Password')
+        self.label.pack()
+        self.pwd_entry = ttk.Entry(self, show='*')
+        self.pwd_entry.pack()
+        self.pwd_entry.focus_set()
+        
+        enter_button = ttk.Button(self, text='Enter', command= self.combo_function)
+        enter_button.pack()
+        
+        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
+        clear_button.pack()
+        
+        quit_button = ttk.Button(self, text='Exit', command= self.close_message)
+        quit_button.pack()
+        
+    def clear_textbox(self):
+        
+        self.user_entry.delete(0, 'end')
+        self.pwd_entry.delete(0, 'end')
+        
+    def combo_function(self):
+        
+        self.controller.fetch_user = self.user_entry.get()
+        self.controller.fetch_pwd = self.pwd_entry.get()
+        self.clear_textbox()
+        self.controller.show_frame(HomePage)
+        
         
 class HomePage(tk.Frame, MessageBoxes):
 
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text='What Would You Like to Do?', font=LARGE_FONT)
+        label = ttk.Label(self, text='Atlas v1.3', font=LARGE_FONT)
         label.pack(pady=10,padx=10)
+        self.controller = controller
         
         entry_button = ttk.Button(self, text='New Entry', command= lambda: controller.show_frame(EntryPage))
         entry_button.pack()
         
-        lookup_button = ttk.Button(self, text='MR Lookup', command= lambda: controller.show_frame(SearchPage))
+        lookup_button = ttk.Button(self, text='Search', command= lambda: controller.show_frame(SearchPage))
         lookup_button.pack()
         
         report_button = ttk.Button(self, text='Run Report', command= lambda: controller.show_frame(ReportPage))
         report_button.pack()
+
+        data_button = ttk.Button(self, text='Update Data', command=self.update_data)
+        data_button.pack()
+        
+        login_button = ttk.Button(self, text='Login', command= lambda: controller.show_frame(LoginPage))
+        login_button.pack()
         
         quit_button = ttk.Button(self, text='Exit', command= self.close_message)
         quit_button.pack()
+
+    def empty_file(self):
+
+        path = 'C:\\Users\\TWALTON\\Downloads\\*'
+        r = glob.glob(path)
+
+        for f in r:
+            os.remove(f)
+
+    def ppl_setup(self):
+
+        p2p_url = 'https://fin.txdot.gov/psp/psfinpd/EMPLOYEE/ERP/c/REPORT_MANAGER.CONTENT_LIST.GBL?PAGE=PSRF_REPORTS_CHRON&Folder=MYFAVORITES'
+
+        args = ['hide_console', ]
+        self.ppl_driver = webdriver.Chrome(executable_path='C:\\Users\\Public\\chromedriver.exe', service_args=args)
+        self.ppl_driver.get(p2p_url)
+
+    def ppl_login(self,username,password):
         
+        self.ppl_driver.switch_to.default_content()
+        enter_user = self.ppl_driver.find_element_by_id('userid')
+        enter_user.send_keys(username)
+        
+        time.sleep(1)
+        
+        enter_password = self.ppl_driver.find_element_by_id('pwd')
+        enter_password.send_keys(password)
+        
+        self.ppl_driver.find_element_by_css_selector('#login > div > div.ps_signinentry > div:nth-child(8) > input').click()
+
+    def p2p_dl(self):
+
+        num_list = ['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17',
+                    '18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33',
+                    '34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49',
+                    '50','51','52','53','54','55','56','57','58','59','60','61','62','63','64','65']
+
+        dept_list = ['87','38','46','53','42','59','37','58','57','02','14','36','18','55','79','16',
+                     '96','20','06','47','70','72','15','19','51','13','54','60','04','81','29','22',
+                     '97','48','08','03','75','11','49','50','09','12','88','01','44','41','95','85',
+                     '43','25','17','05','23','82','21','89','07','76','10','24','74','83','45','94','99','40']
+
+        for num, dept in zip(num_list, dept_list):
+
+            xpath = '//*[@id="REPORT_NAME$' + str(num) + '"]'
+
+            prcs = '//*[@id="PSRF_PGLET_VW_PRCSINSTANCE$' + str(num) + '"]'
+
+            self.ppl_driver.switch_to.default_content()
+
+            self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+
+            WebDriverWait(self.ppl_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="REPORT_NAME$0"]')))
+
+            self.ppl_driver.find_element_by_xpath('//*[@id="REPORTS_GRID$hviewall$0"]').click()
+
+            time.sleep(3)
+
+            instance = self.ppl_driver.find_element_by_xpath(prcs).text
+
+            self.ppl_driver.find_element_by_xpath(xpath).click()
+
+            self.ppl_driver.switch_to.default_content()
+
+            self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+
+            WebDriverWait(self.ppl_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="URL$1"]')))
+
+            time.sleep(1)
+
+            self.ppl_driver.find_element_by_xpath('//*[@id="URL$1"]').click()
+
+            # time.sleep(10)
+
+            dl_dir = r'C:\Users\TWALTON\Downloads\xpo005r_{}.csv'.format(instance)
+
+            p2p_path = r'T:\IMD Sourcing\Atlas App\Data\Peoplesoft Data\dept{}.csv'.format(dept)
+
+            while not os.path.exists(dl_dir):
+                time.sleep(1)
+
+            if os.path.isfile(dl_dir):
+                time.sleep(1)
+
+                shutil.copy(dl_dir, p2p_path)
+
+            else:
+
+                raise ValueError("%s isn't a file!" % dl_dir)
+
+            self.ppl_driver.switch_to.default_content()
+
+            self.ppl_driver.find_element_by_xpath('//*[@id="pthnavbccrefanc_PT_CONTENT_LIST_GBL"]').click()
+
+    def merge_p2p(self):
+
+        column_names = ['Requesting Business Unit','Requisition ID','Requisition Name','Requisitioner ID','Requisitioner Name','Requisition Status','Requisition Date','Requisition Approval Date','Requisition Line Nbr',
+        'Item SetID','Item ID','Item Description','Requested Quantity','Unit of Measure','Buyer ID','Buyer Name','Comp. Object Req','Accounting Year Req','DDO Req','Department ID Req','Fund Code Req','Class Field Req',
+        'Project CostinG Business Unit Req','Project ID Req','PC Activity ID Req','PC Resource Type Req','PC Analysis Type Req','RFQ ID','RFQ Status','RFQ Open Date','RFQ Buyer ID','RFQ Dispatch Date','RFQ Line Number',
+        'PO Business Unit','PO Number','PO Date','PO Buyer ID','PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status','PO Quantity','PO Amount','PO Vendor ID',
+        'Vendor Location Code','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO','Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO','Project ID PO','PC Activity ID PO',
+        'PC Resource Type PO','PC Analysis Type PO','Receiving Business Unit','Receipt ID','Receipt Updated By','Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','AP Business Unit','Voucher ID',
+        'Voucher Entered Date','Voucher Amount','Invoice ID','Invoice Date','PO Reference Number','Ship Due Date','Online TSB','Service Start Date','Service End Date','Total PO Amount','Total Amount Received',
+        'Purchase Method','Purchase Type']
+
+        file = r'T:\IMD Sourcing\Atlas App\Data\Peoplesoft Data'
+        p2p_csv = glob.glob(file + '/*.csv')
+        frame = pd.DataFrame
+        df_list = []
+
+        for f in p2p_csv:
+            df = pd.read_csv(f, index_col=None, skiprows=2, encoding = 'windows-1252', low_memory=False, usecols=column_names, dtype=str).replace({'"':'','=':''},regex=True)
+            df_list.append(df)
+        frame = pd.concat(df_list, sort=False)
+
+        frame.to_csv(r'T:\IMD Sourcing\Atlas App\Data\P2PAY19.csv', index=False)
+
+    # def atlas_report(self):
+        
+    #     df1 = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasentry.csv', 
+    #                       encoding='windows-1252', dtype=str)
+        
+    #     df1 = df1.drop_duplicates(subset=['Ticket Number', 'Requisition ID'])
+        
+    #     df3 = p2p_df.loc[p2p_df['Requisitioner Name'].isin(req_list)]
+
+    #     df4 = pd.merge(df1, df3, on='Requisition ID', how='right')
+
+    #     df4.to_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv', encoding='utf-8', index=False)
+
+    #     self.ppl_driver.close()
+
+    def atlas_report(self, x, y, z):
+
+        y = y[['Ticket Number', 'Requisition ID']]
+
+        self.df1 = pd.concat([x,y], axis=0)
+
+        self.df1 = self.df1.drop_duplicates(subset=['Ticket Number', 'Requisition ID'])
+
+        self.df1.to_csv('T:\\IMD Sourcing\\Atlas App\\Data\\atlasentrytest.csv', 
+                 encoding='windows-1252', index=False)
+
+        self.df3 = z.loc[z['Requisitioner Name'].isin(req_list)]
+
+        self.df4 = pd.merge(self.df1, self.df3, on='Requisition ID', how='right')
+
+        self.df4.to_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv', encoding='utf-8', index=False)
+
+    def mr_spreadsheets(self, x):
+
+        x['Requisition Date'] = pd.to_datetime(x['Requisition Date'], format='%m/%d/%Y', errors='coerce')
+
+        mask2019 = (x['Requisition Date'] <= pd.to_datetime('today')) & (x['Requisition Date'] >= pd.to_datetime('09/01/2018'))
+
+        x_2019 =  x.loc[mask2019]
+        
+        x_2019.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\MR2019.csv', encoding='windows-1252', index=False)
+
+        mask2018 = (x['Requisition Date'] <= pd.to_datetime('08/31/2018')) & (x['Requisition Date'] >= pd.to_datetime('09/01/2017'))
+
+        x_2018 = x.loc[mask2018]
+
+        x_2018.to_csv(r'T:\FISCAL\FY 2018\PURCHASING 2018\MR2018.csv', encoding='windows-1252', index=False)
+
+        self.ppl_driver.close()
+
+    def update_data(self):
+
+        self.empty_file()
+        self.ppl_setup()
+        self.ppl_login(self.controller.fetch_user, self.controller.fetch_pwd)
+        self.p2p_dl()
+        self.merge_p2p()
+        self.atlas_report(entry_df, pending_po, p2p_df)
+        self.mr_spreadsheets(self.df4)
 
 class EntryPage(tk.Frame, MessageBoxes):
     
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        self.label = ttk.Label(self, text="New MR Entry", font=LARGE_FONT)
+        self.label = ttk.Label(self, text=" New Entry  ", font=LARGE_FONT)
         self.label.pack(pady=10,padx=10)
+        self.controller = controller
 
         self.label = ttk.Label(self, text= 'Enter Ticket Number')
         self.label.pack()
@@ -153,28 +421,23 @@ class EntryPage(tk.Frame, MessageBoxes):
 
     def write_file(self):
         
-        with open ('T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\MRONSTEROIDS.csv', 'a', newline='') as f:
-            w = csv.writer(f, quoting=csv.QUOTE_ALL)
+        with open ('T:\\IMD Sourcing\\Atlas App\\Data\\atlasentry.csv', 'a', newline='') as f:
+            w = csv.writer(f, quoting=csv.QUOTE_ALL, delimiter=',')
             
             w.writerow([self.entry1.get().upper(), self.entry2.get().upper()])
             
     def merge_file(self):
         
-        df1 = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\MRONSTEROIDS.csv', 
-                          encoding='windows-1252', dtype='str')
-
-        # USE THE ORIGINAL P2P REPORT TO MERGE, THEN SAVE AS A NEW NAME
-        df2 = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\COPYP2PJAN17TOAUG18.csv', thousands=',',
-                             skiprows=[1], header=[1], encoding='windows-1252', dtype='str')
+        df1 = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasentry.csv', 
+                          encoding='windows-1252', dtype=str)
         
-        requisitioner_list = ['Robinson Debra', 'Walton Timothy', 'Rhoads Jay', 'Garcia Karen', 
-                              'Birdwell Diana', 'Eckert Lauren']
+        df1 = df1.drop_duplicates(subset=['Ticket Number', 'Requisition ID'])
         
-        df3 = df2.loc[df2['Requisitioner Name'].isin(requisitioner_list)]
+        df3 = p2p_df.loc[p2p_df['Requisitioner Name'].isin(req_list)]
 
         df4 = pd.merge(df1, df3, on='Requisition ID', how='right')
 
-        df4.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv', encoding='windows-1252', index=False)
+        df4.to_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv', encoding='utf-8', index=False)
         
     def clear_textbox(self):
         
@@ -183,23 +446,23 @@ class EntryPage(tk.Frame, MessageBoxes):
         
     def req_auto(self):
         
-        txdotnow_url = 'https://txdottest.service-now.com/'
+        txdotnow_url = 'https://txdotnow.service-now.com/'
 
-        # Calling web browser and entering url variable
-        driver = webdriver.Chrome()
+        args = ['hide_console', ]
+        driver = webdriver.Chrome(executable_path='C:\\Users\\Public\\chromedriver.exe', service_args=args)
         driver.get(txdotnow_url)
 
         driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="gsft_main"]'))
 
         enter_user = driver.find_element_by_id('user_name')
-        enter_user.send_keys('TWALTON')
+        enter_user.send_keys(self.controller.fetch_user)
         time.sleep(1)
         enter_password = driver.find_element_by_id('user_password')
-        enter_password.send_keys('Cowboy_26')
+        enter_password.send_keys(self.controller.fetch_pwd)
 
         driver.find_element_by_css_selector('.pull-right.btn.btn-primary').click()
 
-        driver.switch_to_default_content()
+        driver.switch_to.default_content()
 
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sysparm_search"]')))
         driver.find_element_by_xpath('//*[@id="sysparm_search"]').send_keys(self.entry1.get())
@@ -208,13 +471,10 @@ class EntryPage(tk.Frame, MessageBoxes):
 
         driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="gsft_main"]'))
         driver.find_element_by_xpath('//*[@id="sc_task.request_item.comments"]').send_keys('''ERP REQ#: {} has been submitted for this ticket.
-        \nThis ticket will be updated when a PO has been issued by PRO Division.'''.format(self.entry2.get()))
+        This ticket will be updated when a PO has been issued by PRO Division.'''.format(self.entry2.get()))
 
         driver.find_element_by_xpath('//*[@id="sys_display.sc_task.assignment_group"]').clear()
         driver.find_element_by_xpath('//*[@id="sys_display.sc_task.assignment_group"]').send_keys('IMD_Pending_PO')
-        time.sleep(1)
-        driver.find_element_by_xpath('//*[@id="sys_display.sc_task.assigned_to"]').clear()
-        driver.find_element_by_xpath('//*[@id="sys_display.sc_task.assigned_to"]').send_keys('Timothy Walton')
 
         time.sleep(1)
         driver.find_element_by_xpath('//*[@id="sc_task.u_peoplesoft_erq"]').send_keys('00000{}'.format(self.entry2.get()))
@@ -227,8 +487,6 @@ class EntryPage(tk.Frame, MessageBoxes):
         upload.send_keys(r'T:\FISCAL\SHAREPOINT FILING DOC\REQUISITIONS\REQ{}.pdf'.format(self.entry2.get()))
 
         driver.find_element_by_xpath('//*[@id="attachment"]/div/div/header/button').click()
-        driver.find_element_by_id('sysverb_update').click()
-        driver.switch_to.alert.accept()
         
     def combo_command(self):
         
@@ -238,7 +496,7 @@ class EntryPage(tk.Frame, MessageBoxes):
         self.req_auto()
         self.clear_textbox()
         
-    
+        
 class SearchPage(tk.Frame):
     
     def __init__(self, parent, controller):
@@ -246,513 +504,28 @@ class SearchPage(tk.Frame):
         tk.Frame.__init__(self,parent)
         label = ttk.Label(self, text="Select Search Option", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
+        self.controller = controller
         
-        task_button = ttk.Button(self, text='      Search By SCTASK      ', command= lambda: controller.show_frame(TaskPage))
-        task_button.pack()
-        
-        req_button = ttk.Button(self, text='    Search By Requistion    ', command= lambda: controller.show_frame(ReqPage))
-        req_button.pack()
-                                  
-        po_button = ttk.Button(self, text='Search By Purchase Order', command= lambda: controller.show_frame(PoPage))
-        po_button.pack()
-        
-        rec_button = ttk.Button(self, text='       Search By Receipt       ', command= lambda: controller.show_frame(RecPage))
-        rec_button.pack()
-        
-        voucher_button = ttk.Button(self, text='      Search By Voucher      ', 
-                                    command= lambda: controller.show_frame(VoucherPage))
-        voucher_button.pack()
-        
-        date_button = ttk.Button(self, text='         Search By Date          ', command= lambda: controller.show_frame(DatePage))
-        date_button.pack()
-        
-        all_button = ttk.Button(self, text='        Search Database         ', command= lambda: controller.show_frame(AllPage))
+        all_button = ttk.Button(self, text=' Peoplesoft ', command= lambda: controller.show_frame(AllPage))
         all_button.pack()
         
-        home_button = ttk.Button(self, text='                 Home                 ', 
-                                 command= lambda: controller.show_frame(HomePage))
+        date_button = ttk.Button(self, text='    By Date   ', command= lambda: controller.show_frame(DatePage))
+        date_button.pack()
+
+        txdot_button = ttk.Button(self, text='TXDOTNow', command= lambda: controller.show_frame(TXDOTPage))
+        txdot_button.pack()
+ 
+        ppt_button = ttk.Button(self, text='       PPT       ', command= lambda: controller.show_frame(PPTPage))
+        ppt_button.pack()
+
+        vendor_button = ttk.Button(self, text='   Vendors   ', command= lambda: controller.show_frame(VendorPage))
+        vendor_button.pack()
+
+        pdf_button = ttk.Button(self, text='      PDFs      ', command= lambda: controller.show_frame(PDFPage))
+        pdf_button.pack()
+        
+        home_button = ttk.Button(self, text='     Home      ', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
-
-
-class ReqPage(tk.Frame):
-    
-    def __init__(self, parent, controller):
-        
-        tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="Requisition Search", font=LARGE_FONT)
-        label.pack(pady=10,padx=10)
-        
-        self.label1 = ttk.Label(self, text='Enter Requisition ID: ')
-        self.req_entry = ttk.Entry(self)
-        self.label1.pack()
-        self.req_entry.pack()
-        self.req_entry.focus_set()
-        
-        req_button = ttk.Button(self, text='Search', command=self.req_search)
-        req_button.pack()
-        
-        export_button = ttk.Button(self, text= 'Export', command=self.exportreq)
-        export_button.pack()
-        
-        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
-        clear_button.pack()
-        
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
-        back_button.pack()
-        
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
-        home_button.pack()
-        
-    def req_search(self):
-        
-        window = tk.Tk()
-        window.geometry('1000x500')
-            
-        frame = tk.Frame(window)
-        frame.pack()
-        
-        req_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252'
-                             ,low_memory=False)
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        req_df = req_df.applymap(str)
-        
-        p2p_df = req_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        req_output = p2p_df.loc[req_df['Requisition ID'].str.contains(self.req_entry.get(), na=False)]
-        
-        scrolly = ttk.Scrollbar(frame, orient='vertical')
-        scrollx = ttk.Scrollbar(frame, orient='horizontal')
-        scrolly.pack(side='right', fill='y')
-        scrollx.pack(side='bottom', fill='x')
-        
-        self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
-        self.t1.config(wrap='none')
-        self.t1.pack(fill='both', expand=True)
-        self.t1.insert(tk.END,req_output)
-        
-        scrolly.config(command=self.t1.yview)
-        scrollx.config(command=self.t1.xview)
-    
-    def exportreq(self):
-        
-        df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        df = df.applymap(str)
-        
-        df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        df = df.loc[df['Requisition ID'].str.contains(self.req_entry.get(), na=False)]
-        
-        df.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\exportreq.csv', encoding='windows-1252', index=False)
-
-        os.startfile('T:\\FISCAL\\FY 2019\\PURCHASING 2019\\P2P RAW DATA\\exportreq.csv', 'open')
-        
-    def clear_textbox(self):
-        self.req_entry.delete(0, 'end')
-        
-        
-class PoPage(tk.Frame):
-    
-    def __init__(self, parent, controller):
-        
-        tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="PO Search", font=LARGE_FONT)
-        label.pack(pady=10,padx=10)
-        
-        self.label1 = ttk.Label(self, text='Enter PO ID: ')
-        self.po_entry = ttk.Entry(self)
-        self.label1.pack()
-        self.po_entry.pack()
-        self.po_entry.focus_set()
-        
-        po_button = ttk.Button(self, text='Search', command=self.po_search)
-        po_button.pack()
-        
-        export_button = ttk.Button(self, text= 'Export', command=self.exportpo)
-        export_button.pack()
-        
-        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
-        clear_button.pack()
-        
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
-        back_button.pack()
-        
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
-        home_button.pack()
-        
-    def po_search(self):
-        
-        window = tk.Tk()
-        window.geometry('1000x500')
-            
-        frame = tk.Frame(window)
-        frame.pack()
-        
-        po_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        po_df = po_df.applymap(str)
-        
-        p2p_df = po_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        po_output = p2p_df.loc[req_df['PO Number'] == self.po_entry.get()]
-        
-        scrolly = ttk.Scrollbar(frame, orient='vertical')
-        scrollx = ttk.Scrollbar(frame, orient='horizontal')
-        scrolly.pack(side='right', fill='y')
-        scrollx.pack(side='bottom', fill='x')
-        
-        self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
-        self.t1.config(wrap='none')
-        self.t1.pack(fill='both', expand=True)
-        self.t1.insert(tk.END,po_output)
-        
-        scrolly.config(command=self.t1.yview)
-        scrollx.config(command=self.t1.xview)
-        
-    def exportpo(self):
-        
-        df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        df = df.applymap(str)
-        
-        df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        df = df.loc[df['PO Number'] == self.po_entry.get()]
-        
-        df.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\exportpo.csv', encoding='windows-1252', index=False)
-
-        os.startfile('T:\\FISCAL\\FY 2019\\PURCHASING 2019\\P2P RAW DATA\\exportpo.csv', 'open')    
-        
-    def clear_textbox(self):
-        self.po_entry.delete(0, 'end')
-        
-        
-class RecPage(tk.Frame):
-    
-    def __init__(self, parent, controller):
-        
-        tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="Receipt Search", font=LARGE_FONT)
-        label.pack(pady=10,padx=10)
-        
-        self.label1 = ttk.Label(self, text='Enter Receipt ID: ')
-        self.rec_entry = ttk.Entry(self)
-        self.label1.pack()
-        self.rec_entry.pack()
-        self.rec_entry.focus_set()
-        
-        rec_button = ttk.Button(self, text='Search', command=self.rec_search)
-        rec_button.pack()
-        
-        export_button = ttk.Button(self, text= 'Export', command=self.exportrec)
-        export_button.pack()
-        
-        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
-        clear_button.pack()
-        
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
-        back_button.pack()
-        
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
-        home_button.pack()
-        
-    def rec_search(self):
-        
-        window = tk.Tk()
-        window.geometry('1000x500')
-        
-        frame = tk.Frame(window)
-        frame.pack()
-        
-        rec_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        rec_df = rec_df.applymap(str)
-        
-        p2p_df = rec_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        rec_output = p2p_df.loc[rec_df['Receipt ID'] == self.rec_entry.get()]
-        
-        scrolly = ttk.Scrollbar(frame, orient='vertical')
-        scrollx = ttk.Scrollbar(frame, orient='horizontal')
-        scrolly.pack(side='right', fill='y')
-        scrollx.pack(side='bottom', fill='x')
-        
-        self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
-        self.t1.config(wrap='none')
-        self.t1.pack(fill='both', expand=True)
-        self.t1.insert(tk.END,rec_output)
-        
-        scrolly.config(command=self.t1.yview)
-        scrollx.config(command=self.t1.xview)
-        
-    def exportrec(self):
-        
-        df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        df = df.applymap(str)
-        
-        df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        df = df.loc[df['Receipt ID'] == self.rec_entry.get()]
-        
-        df.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\exportreceipt.csv', encoding='windows-1252', index=False)
-
-        os.startfile('T:\\FISCAL\\FY 2019\\PURCHASING 2019\\P2P RAW DATA\\exportreceipt.csv', 'open')  
-        
-    def clear_textbox(self):
-        self.rec_entry.delete(0, 'end')
-        
-        
-class TaskPage(tk.Frame):
-    
-    def __init__(self, parent, controller):
-        
-        tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="SCTASK Search", font=LARGE_FONT)
-        label.pack(pady=10,padx=10)
-        
-        self.label1 = ttk.Label(self, text='Enter SCTASK: ')
-        self.task_entry = ttk.Entry(self)
-        self.label1.pack()
-        self.task_entry.pack()
-        self.task_entry.focus_set()
-        
-        task_button = ttk.Button(self, text='Search', command=self.task_search)
-        task_button.pack()
-        
-        export_button = ttk.Button(self, text= 'Export', command=self.exporttask)
-        export_button.pack()
-        
-        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
-        clear_button.pack()
-        
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
-        back_button.pack()
-        
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
-        home_button.pack()
-        
-    def task_search(self):
-        
-        window = tk.Tk()
-        window.geometry('1000x500')
-        
-        frame = tk.Frame(window)
-        frame.pack()
-        
-        rec_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        rec_df = rec_df.applymap(str)
-        
-        p2p_df = rec_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        task_output = p2p_df.loc[rec_df['Ticket Number'] == self.task_entry.get().upper()]
-        
-        scrolly = ttk.Scrollbar(frame, orient='vertical')
-        scrollx = ttk.Scrollbar(frame, orient='horizontal')
-        scrolly.pack(side='right', fill='y')
-        scrollx.pack(side='bottom', fill='x')
-        
-        self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
-        self.t1.config(wrap='none')
-        self.t1.pack(fill='both', expand=True)
-        self.t1.insert(tk.END,task_output)
-        
-        scrolly.config(command=self.t1.yview)
-        scrollx.config(command=self.t1.xview)
-        
-    def exporttask(self):
-        
-        df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        df = df.applymap(str)
-        
-        df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        df = df.loc[df['Ticket Number'] == self.task_entry.get().upper()]
-        
-        df.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\exporttask.csv', encoding='windows-1252', index=False)
-
-        os.startfile('T:\\FISCAL\\FY 2019\\PURCHASING 2019\\P2P RAW DATA\\exporttask.csv', 'open')
-        
-    def clear_textbox(self):
-        self.task_entry.delete(0, 'end')
-        
-        
-class VoucherPage(tk.Frame):
-    
-    def __init__(self, parent, controller):
-        
-        tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="Voucher Search", font=LARGE_FONT)
-        label.pack(pady=10,padx=10)
-        
-        self.label1 = ttk.Label(self, text='Enter Voucher ID: ')
-        self.voucher_entry = ttk.Entry(self)
-        self.label1.pack()
-        self.voucher_entry.pack()
-        self.voucher_entry.focus_set()
-        
-        voucher_button = ttk.Button(self, text='Search', command=self.voucher_search)
-        voucher_button.pack()
-        
-        export_button = ttk.Button(self, text= 'Export', command=self.exportvoucher)
-        export_button.pack()
-        
-        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
-        clear_button.pack()
-        
-        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
-        back_button.pack()
-        
-        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
-        home_button.pack()
-        
-    def voucher_search(self):
-        
-        window = tk.Tk()
-        window.geometry('1000x500')
-        
-        frame = tk.Frame(window)
-        frame.pack()
-        
-        rec_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        rec_df = rec_df.applymap(str)
-        
-        p2p_df = rec_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        voucher_output = p2p_df.loc[rec_df['Voucher ID'] == self.voucher_entry.get()]
-        
-        scrolly = ttk.Scrollbar(frame, orient='vertical')
-        scrollx = ttk.Scrollbar(frame, orient='horizontal')
-        scrolly.pack(side='right', fill='y')
-        scrollx.pack(side='bottom', fill='x')
-        
-        self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
-        self.t1.config(wrap='none')
-        self.t1.pack(fill='both', expand=True)
-        self.t1.insert(tk.END,voucher_output)
-        
-        scrolly.config(command=self.t1.yview)
-        scrollx.config(command=self.t1.xview)
-        
-    def exportvoucher(self):
-        
-        df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        df = df.applymap(str)
-        
-        df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        df = df.loc[df['Voucher ID'] == self.voucher_entry.get()]
-        
-        df.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\exportvoucher.csv', encoding='windows-1252', index=False)
-
-        os.startfile('T:\\FISCAL\\FY 2019\\PURCHASING 2019\\P2P RAW DATA\\exportvoucher.csv', 'open')
-        
-    def clear_textbox(self):
-        self.voucher_entry.delete(0, 'end')
         
 
 class AllPage(tk.Frame):
@@ -760,8 +533,9 @@ class AllPage(tk.Frame):
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
-        label = ttk.Label(self, text="Search Database", font=LARGE_FONT)
+        label = ttk.Label(self, text="Search Peoplesoft", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
+        self.controller = controller
         
         self.label1 = ttk.Label(self, text='Search For: ')
         self.all_entry = ttk.Entry(self)
@@ -771,6 +545,9 @@ class AllPage(tk.Frame):
         
         all_button = ttk.Button(self, text='Search', command=self.all_lookup)
         all_button.pack()
+        
+        export_button = ttk.Button(self, text='Export', command=self.export_lookup)
+        export_button.pack()
         
         clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
         clear_button.pack()
@@ -783,32 +560,18 @@ class AllPage(tk.Frame):
         
     def all_lookup(self):
         
+        global atlas_df
+        
         window = tk.Tk()
         window.geometry('1000x500')
         
         frame = tk.Frame(window)
         frame.pack()
         
-        rec_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        rec_df = rec_df.applymap(str)
+        atlas_df = atlas_df.apply(lambda x: x.astype(str).str.upper())
         
-        p2p_df = rec_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        p2p_df = p2p_df.apply(lambda x: x.astype(str).str.upper())
-        
-        mask = np.column_stack([p2p_df[col].str.contains(self.all_entry.get().upper(), na=False, regex=False) for col in p2p_df])
-        all_input = p2p_df.loc[mask.any(axis=1)]
+        mask = np.column_stack([atlas_df[col].str.contains(self.all_entry.get().upper(), na=False, regex=False) for col in atlas_df])
+        all_input = atlas_df.loc[mask.any(axis=1)]
 
         scrolly = ttk.Scrollbar(frame, orient='vertical')
         scrollx = ttk.Scrollbar(frame, orient='horizontal')
@@ -823,8 +586,23 @@ class AllPage(tk.Frame):
         scrolly.config(command=self.t1.yview)
         scrollx.config(command=self.t1.xview)
         
+    def export_lookup(self):
+        
+        global atlas_df
+        
+        atlas_df = atlas_df.apply(lambda x: x.astype(str).str.upper())
+        
+        mask = np.column_stack([atlas_df[col].str.contains(self.all_entry.get().upper(), na=False, regex=False) for col in atlas_df])
+        all_input = atlas_df.loc[mask.any(axis=1)]
+        
+        all_input.to_csv('T:\\IMD Sourcing\\Atlas App\\Data\\atlasexport.csv', 
+                         encoding='windows-1252', index=False)
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\atlasexport.csv', 'open')
+        
     def clear_textbox(self):
         self.all_entry.delete(0, 'end')
+        
 
 class DatePage(tk.Frame):
     
@@ -833,6 +611,7 @@ class DatePage(tk.Frame):
         tk.Frame.__init__(self,parent)
         label = ttk.Label(self, text="Search By Date", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
+        self.controller = controller
         
         self.label1 = ttk.Label(self, text='Start Date: ')
         self.date_entry1 = ttk.Entry(self)
@@ -869,49 +648,36 @@ class DatePage(tk.Frame):
         
     def req_date(self):
         
+        global atlas_df
+        
+        atlas_df['Requisition Date'] = pd.to_datetime(atlas_df['Requisition Date'])
+        atlas_df['PO Date'] = pd.to_datetime(atlas_df['PO Date'])
+        atlas_df['Receipt Date'] = pd.to_datetime(atlas_df['Receipt Date'])
+        atlas_df['Voucher Entered Date'] = pd.to_datetime(atlas_df['Voucher Entered Date'])
+        
         window = tk.Tk()
         window.geometry('1000x500')
             
         frame = tk.Frame(window)
         frame.pack()
         
-        req_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',
-                             encoding='windows-1252',low_memory=False)
-        pd.options.display.max_columns = None
-        pd.options.display.max_rows = None
-        pd.set_option('display.max_colwidth', -1)
-        req_df = req_df.applymap(str)
-        
-        p2p_df = req_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        p2p_df['Requisition Date'] = pd.to_datetime(p2p_df['Requisition Date'])
-        
         if self.date_entry1.get() == '' and self.date_entry2.get() == '':
-            mask = ((p2p_df['Requisition Date'] >= p2p_df['Requisition Date'].min()) & 
-            (p2p_df['Requisition Date'] <= p2p_df['Requisition Date'].max()))
+            mask = ((atlas_df['Requisition Date'] >= atlas_df['Requisition Date'].min()) & 
+            (atlas_df['Requisition Date'] <= atlas_df['Requisition Date'].max()))
         
         elif self.date_entry1.get() == '':
-            mask = ((p2p_df['Requisition Date'] >= p2p_df['Requisition Date'].min()) & 
-            (p2p_df['Requisition Date'] <= pd.to_datetime(self.date_entry2.get())))
+            mask = ((atlas_df['Requisition Date'] >= atlas_df['Requisition Date'].min()) & 
+            (atlas_df['Requisition Date'] <= pd.to_datetime(self.date_entry2.get())))
     
         elif self.date_entry2.get() == '':
-            mask = ((p2p_df['Requisition Date'] >= pd.to_datetime(self.date_entry1.get())) & 
-            (p2p_df['Requisition Date'] <= p2p_df['Requisition Date'].max()))
+            mask = ((atlas_df['Requisition Date'] >= pd.to_datetime(self.date_entry1.get())) & 
+            (atlas_df['Requisition Date'] <= atlas_df['Requisition Date'].max()))
             
         else:
-            mask = ((p2p_df['Requisition Date'] >= pd.to_datetime(self.date_entry1.get())) & 
-            (p2p_df['Requisition Date'] <= pd.to_datetime(self.date_entry2.get())))
+            mask = ((atlas_df['Requisition Date'] >= pd.to_datetime(self.date_entry1.get())) & 
+            (atlas_df['Requisition Date'] <= pd.to_datetime(self.date_entry2.get())))
     
-        date_lookup = p2p_df.loc[mask]
+        date_lookup = atlas_df.loc[mask]
 
         scrolly = ttk.Scrollbar(frame, orient='vertical')
         scrollx = ttk.Scrollbar(frame, orient='horizontal')
@@ -928,49 +694,36 @@ class DatePage(tk.Frame):
         
     def po_date(self):
         
+        global atlas_df
+        
+        atlas_df['Requisition Date'] = pd.to_datetime(atlas_df['Requisition Date'])
+        atlas_df['PO Date'] = pd.to_datetime(atlas_df['PO Date'])
+        atlas_df['Receipt Date'] = pd.to_datetime(atlas_df['Receipt Date'])
+        atlas_df['Voucher Entered Date'] = pd.to_datetime(atlas_df['Voucher Entered Date'])
+        
         window = tk.Tk()
         window.geometry('1000x500')
             
         frame = tk.Frame(window)
         frame.pack()
         
-        req_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',
-                             encoding='windows-1252',low_memory=False)
-        pd.options.display.max_columns = None
-        pd.options.display.max_rows = None
-        pd.set_option('display.max_colwidth', -1)
-        req_df = req_df.applymap(str)
-        
-        p2p_df = req_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        p2p_df['PO Date'] = pd.to_datetime(p2p_df['PO Date'])
-        
         if self.date_entry1.get() == '' and self.date_entry2.get() == '':
-            mask = ((p2p_df['PO Date'] >= p2p_df['PO Date'].min()) & 
-            (p2p_df['PO Date'] <= p2p_df['PO Date'].max()))
+            mask = ((atlas_df['PO Date'] >= atlas_df['PO Date'].min()) & 
+            (atlas_df['PO Date'] <= atlas_df['PO Date'].max()))
         
         elif self.date_entry1.get() == '':
-            mask = ((p2p_df['PO Date'] >= p2p_df['PO Date'].min()) & 
-            (p2p_df['PO Date'] <= pd.to_datetime(self.date_entry2.get())))
+            mask = ((atlas_df['PO Date'] >= atlas_df['PO Date'].min()) & 
+            (atlas_df['PO Date'] <= pd.to_datetime(self.date_entry2.get())))
     
         elif self.date_entry2.get() == '':
-            mask = ((p2p_df['PO Date'] >= pd.to_datetime(self.date_entry1.get())) & 
-            (p2p_df['PO Date'] <= p2p_df['PO Date'].max()))
+            mask = ((atlas_df['PO Date'] >= pd.to_datetime(self.date_entry1.get())) & 
+            (atlas_df['PO Date'] <= atlas_df['PO Date'].max()))
             
         else:
-            mask = ((p2p_df['PO Date'] >= pd.to_datetime(self.date_entry1.get())) & 
-            (p2p_df['PO Date'] <= pd.to_datetime(self.date_entry2.get())))
+            mask = ((atlas_df['PO Date'] >= pd.to_datetime(self.date_entry1.get())) & 
+            (atlas_df['PO Date'] <= pd.to_datetime(self.date_entry2.get())))
     
-        date_lookup = p2p_df.loc[mask]
+        date_lookup = atlas_df.loc[mask]
 
         scrolly = ttk.Scrollbar(frame, orient='vertical')
         scrollx = ttk.Scrollbar(frame, orient='horizontal')
@@ -987,49 +740,36 @@ class DatePage(tk.Frame):
         
     def receipt_date(self):
         
+        global atlas_df
+        
+        atlas_df['Requisition Date'] = pd.to_datetime(atlas_df['Requisition Date'])
+        atlas_df['PO Date'] = pd.to_datetime(atlas_df['PO Date'])
+        atlas_df['Receipt Date'] = pd.to_datetime(atlas_df['Receipt Date'])
+        atlas_df['Voucher Entered Date'] = pd.to_datetime(atlas_df['Voucher Entered Date'])
+        
         window = tk.Tk()
         window.geometry('1000x500')
             
         frame = tk.Frame(window)
         frame.pack()
         
-        req_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',
-                             encoding='windows-1252',low_memory=False)
-        pd.options.display.max_columns = None
-        pd.options.display.max_rows = None
-        pd.set_option('display.max_colwidth', -1)
-        req_df = req_df.applymap(str)
-        
-        p2p_df = req_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        p2p_df['Receipt Date'] = pd.to_datetime(p2p_df['Receipt Date'])
-        
         if self.date_entry1.get() == '' and self.date_entry2.get() == '':
-            mask = ((p2p_df['Receipt Date'] >= p2p_df['Receipt Date'].min()) & 
-            (p2p_df['Receipt Date'] <= p2p_df['Receipt Date'].max()))
+            mask = ((atlas_df['Receipt Date'] >= atlas_df['Receipt Date'].min()) & 
+            (atlas_df['Receipt Date'] <= atlas_df['Receipt Date'].max()))
         
         elif self.date_entry1.get() == '':
-            mask = ((p2p_df['Receipt Date'] >= p2p_df['Receipt Date'].min()) & 
-            (p2p_df['Receipt Date'] <= pd.to_datetime(self.date_entry2.get())))
+            mask = ((atlas_df['Receipt Date'] >= atlas_df['Receipt Date'].min()) & 
+            (atlas_df['Receipt Date'] <= pd.to_datetime(self.date_entry2.get())))
     
         elif self.date_entry2.get() == '':
-            mask = ((p2p_df['Receipt Date'] >= pd.to_datetime(self.date_entry1.get())) & 
-            (p2p_df['Receipt Date'] <= p2p_df['Receipt Date'].max()))
+            mask = ((atlas_df['Receipt Date'] >= pd.to_datetime(self.date_entry1.get())) & 
+            (atlas_df['Receipt Date'] <= atlas_df['Receipt Date'].max()))
             
         else:
-            mask = ((p2p_df['Receipt Date'] >= pd.to_datetime(self.date_entry1.get())) & 
-            (p2p_df['Receipt Date'] <= pd.to_datetime(self.date_entry2.get())))
+            mask = ((atlas_df['Receipt Date'] >= pd.to_datetime(self.date_entry1.get())) & 
+            (atlas_df['Receipt Date'] <= pd.to_datetime(self.date_entry2.get())))
     
-        date_lookup = p2p_df.loc[mask]
+        date_lookup = atlas_df.loc[mask]
 
         scrolly = ttk.Scrollbar(frame, orient='vertical')
         scrollx = ttk.Scrollbar(frame, orient='horizontal')
@@ -1046,49 +786,36 @@ class DatePage(tk.Frame):
         
     def voucher_date(self):
         
+        global atlas_df
+        
+        atlas_df['Requisition Date'] = pd.to_datetime(atlas_df['Requisition Date'])
+        atlas_df['PO Date'] = pd.to_datetime(atlas_df['PO Date'])
+        atlas_df['Receipt Date'] = pd.to_datetime(atlas_df['Receipt Date'])
+        atlas_df['Voucher Entered Date'] = pd.to_datetime(atlas_df['Voucher Entered Date'])
+        
         window = tk.Tk()
         window.geometry('1000x500')
             
         frame = tk.Frame(window)
         frame.pack()
         
-        req_df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',
-                             encoding='windows-1252',low_memory=False)
-        pd.options.display.max_columns = None
-        pd.options.display.max_rows = None
-        pd.set_option('display.max_colwidth', -1)
-        req_df = req_df.applymap(str)
-        
-        p2p_df = req_df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                         'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                         'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                         'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                         'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                         'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                         'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                         'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                         'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                         'Total PO Amount','Total Amount Received']]
-        
-        p2p_df['Voucher Entered Date'] = pd.to_datetime(p2p_df['Voucher Entered Date'])
-        
         if self.date_entry1.get() == '' and self.date_entry2.get() == '':
-            mask = ((p2p_df['Voucher Entered Date'] >= p2p_df['Voucher Entered Date'].min()) & 
-            (p2p_df['Voucher Entered Date'] <= p2p_df['Voucher Entered Date'].max()))
+            mask = ((atlas_df['Voucher Entered Date'] >= atlas_df['Voucher Entered Date'].min()) & 
+            (atlas_df['Voucher Entered Date'] <= atlas_df['Voucher Entered Date'].max()))
         
         elif self.date_entry1.get() == '':
-            mask = ((p2p_df['Voucher Entered Date'] >= p2p_df['Voucher Entered Date'].min()) & 
-            (p2p_df['Voucher Entered Date'] <= pd.to_datetime(self.date_entry2.get())))
+            mask = ((atlas_df['Voucher Entered Date'] >= atlas_df['Voucher Entered Date'].min()) & 
+            (atlas_df['Voucher Entered Date'] <= pd.to_datetime(self.date_entry2.get())))
     
         elif self.date_entry2.get() == '':
-            mask = ((p2p_df['Voucher Entered Date'] >= pd.to_datetime(self.date_entry1.get())) & 
-            (p2p_df['Voucher Entered Date'] <= p2p_df['Voucher Entered Date'].max()))
+            mask = ((atlas_df['Voucher Entered Date'] >= pd.to_datetime(self.date_entry1.get())) & 
+            (atlas_df['Voucher Entered Date'] <= atlas_df['Voucher Entered Date'].max()))
             
         else:
-            mask = ((p2p_df['Voucher Entered Date'] >= pd.to_datetime(self.date_entry1.get())) & 
-            (p2p_df['Voucher Entered Date'] <= pd.to_datetime(self.date_entry2.get())))
+            mask = ((atlas_df['Voucher Entered Date'] >= pd.to_datetime(self.date_entry1.get())) & 
+            (atlas_df['Voucher Entered Date'] <= pd.to_datetime(self.date_entry2.get())))
     
-        date_lookup = p2p_df.loc[mask]
+        date_lookup = atlas_df.loc[mask]
 
         scrolly = ttk.Scrollbar(frame, orient='vertical')
         scrollx = ttk.Scrollbar(frame, orient='horizontal')
@@ -1106,138 +833,939 @@ class DatePage(tk.Frame):
     def clear_textbox(self):
         self.date_entry1.delete(0, 'end')
         self.date_entry2.delete(0, 'end')
-        
 
-class ReportPage(tk.Frame):
+
+class TXDOTPage(tk.Frame):
+    
+    def __init__(self, parent, controller):
+        
+        tk.Frame.__init__(self,parent)
+        label = ttk.Label(self, text="Search TXDOTNow", font=LARGE_FONT)
+        label.pack(pady=10,padx=10)
+        self.controller = controller
+        
+        self.label1 = ttk.Label(self, text='Search For: ')
+        self.txdot_entry = ttk.Entry(self)
+        self.label1.pack()
+        self.txdot_entry.pack()
+        self.txdot_entry.focus_set()
+        
+        txdot_button = ttk.Button(self, text='Search', command=self.txdot_lookup)
+        txdot_button.pack()
+        
+        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
+        clear_button.pack()
+        
+        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
+        back_button.pack()
+        
+        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button.pack()
+
+    def txdot_lookup(self):
+        
+        txdotnow_url = 'https://txdotnow.service-now.com/'
+
+        args = ['hide_console', ]
+        driver = webdriver.Chrome(executable_path='C:\\Users\\Public\\chromedriver.exe', service_args=args)
+        driver.get(txdotnow_url)
+
+        driver.switch_to.frame(driver.find_element_by_xpath('//*[@id="gsft_main"]'))
+
+        enter_user = driver.find_element_by_id('user_name')
+        enter_user.send_keys(self.controller.fetch_user)
+        time.sleep(1)
+        enter_password = driver.find_element_by_id('user_password')
+        enter_password.send_keys(self.controller.fetch_pwd)
+
+        driver.find_element_by_css_selector('.pull-right.btn.btn-primary').click()
+
+        driver.switch_to.default_content()
+
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sysparm_search"]')))
+        driver.find_element_by_xpath('//*[@id="sysparm_search"]').send_keys(self.txdot_entry.get())
+        time.sleep(2)
+        driver.find_element_by_css_selector('.form-control.form-control-search').send_keys(u'\ue007')
+
+    def clear_textbox(self):
+        self.txdot_entry.delete(0, 'end')
+
+class PPTPage(tk.Frame):
+    
+    def __init__(self, parent, controller):
+        
+        tk.Frame.__init__(self,parent)
+        label = ttk.Label(self, text="Search PPT", font=LARGE_FONT)
+        label.pack(pady=10,padx=10)
+        self.controller = controller
+        
+        self.label1 = ttk.Label(self, text='Search For: ')
+        self.ppt_entry = ttk.Entry(self)
+        self.label1.pack()
+        self.ppt_entry.pack()
+        self.ppt_entry.focus_set()
+
+        ppt_button = ttk.Button(self, text='Search', command=self.ppt_lookup)
+        ppt_button.pack()
+        
+        export_button = ttk.Button(self, text='Export', command=self.export_lookup)
+        export_button.pack()
+        
+        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
+        clear_button.pack()
+        
+        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
+        back_button.pack()
+        
+        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button.pack()
+        
+    def ppt_lookup(self):
+        
+        global ppt_df
+        
+        window = tk.Tk()
+        window.geometry('1000x500')
+        
+        frame = tk.Frame(window)
+        frame.pack()
+        
+        ppt_df = ppt_df.apply(lambda x: x.astype(str).str.upper())
+        
+        mask = np.column_stack([ppt_df[col].str.contains(self.ppt_entry.get().upper(), na=False, regex=False) for col in ppt_df])
+        ppt_input = ppt_df.loc[mask.any(axis=1)]
+
+        scrolly = ttk.Scrollbar(frame, orient='vertical')
+        scrollx = ttk.Scrollbar(frame, orient='horizontal')
+        scrolly.pack(side='right', fill='y')
+        scrollx.pack(side='bottom', fill='x')
+        
+        self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
+        self.t1.config(wrap='none')
+        self.t1.pack(fill='both', expand=True)
+        self.t1.insert(tk.END,ppt_input)
+        
+        scrolly.config(command=self.t1.yview)
+        scrollx.config(command=self.t1.xview)
+        
+    def export_lookup(self):
+        
+        global ppt_df
+        
+        ppt_df = ppt_df.apply(lambda x: x.astype(str).str.upper())
+        
+        mask = np.column_stack([ppt_df[col].str.contains(self.ppt_entry.get().upper(), na=False, regex=False) for col in ppt_df])
+        ppt_input = ppt_df.loc[mask.any(axis=1)]
+        
+        ppt_input.to_csv('T:\\IMD Sourcing\\Atlas App\\Data\\atlasexport.csv', 
+                         encoding='windows-1252', index=False)
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\atlasexport.csv', 'open')
+        
+    def clear_textbox(self):
+        self.ppt_entry.delete(0, 'end')
+
+
+class VendorPage(tk.Frame):
+    
+    def __init__(self, parent, controller):
+
+        df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252'
+                             ,low_memory=False, dtype=str)
+
+        vendor_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
+            'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
+            'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
+            'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
+            'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
+            'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
+            'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
+            'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
+            'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
+            'Total PO Amount','Total Amount Received']]
+
+        vendor_df['PO Vendor Name'] = vendor_df['PO Vendor Name'].astype(str)
+
+        vendor_df1 = vendor_df.loc[vendor_df['Requisitioner Name'].isin(req_list)]
+        vendor_df2 = vendor_df1[vendor_df1['PO Number'] != ' ']
+        vendors = sorted(vendor_df2['PO Vendor Name'].unique().tolist())
+        
+        tk.Frame.__init__(self,parent)
+        self.var = tk.StringVar()
+
+        label = ttk.Label(self, text="Search Vendors", font=LARGE_FONT)
+        label.pack(pady=10,padx=10)
+        self.controller = controller
+
+        self.vendor_list = ttk.Combobox(self, textvariable=self.var, values=vendors)
+        self.vendor_list.pack()
+
+        vpo_button = ttk.Button(self, text='     Vendor POs     ', command=self.vendor_po)
+        vpo_button.pack()
+
+        vrec_button = ttk.Button(self, text=' Vendor Receipts ', command=self.vendor_rec)
+        vrec_button.pack()
+        
+        export_button = ttk.Button(self, text='  All Vendor Data ', command=self.export_lookup)
+        export_button.pack()
+         
+        back_button = ttk.Button(self, text='           Back           ', command= lambda: controller.show_frame(SearchPage))
+        back_button.pack()
+        
+        home_button = ttk.Button(self, text='          Home         ', command= lambda: controller.show_frame(HomePage))
+        home_button.pack()
+
+    def vendor_po(self):
+
+        df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252'
+                     ,low_memory=False, dtype=str)
+
+        vendorpo_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
+            'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','PO Number','PO Date',
+            'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
+            'PO Quantity','PO Amount','PO Vendor Name']]
+
+        mask = np.column_stack([vendorpo_df[col].str.contains(self.var.get(), na=False, regex=False) for col in vendorpo_df])
+        vendor_input = vendorpo_df.loc[mask.any(axis=1)]
+        unique_po = vendor_input.drop_duplicates(subset='PO Number')
+        
+        unique_po.to_csv('T:\\IMD Sourcing\\Atlas App\\Data\\atlasexport.csv', 
+                         encoding='windows-1252', index=False)
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\atlasexport.csv', 'open')
+
+    def vendor_rec(self):
+
+        df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252'
+             ,low_memory=False, dtype='str')
+
+        rec_df = df[['Ticket Number','Requisition Name','Requisitioner Name','Item Description','Buyer Name',
+            'PO Number','PO Date','PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status',
+            'PO Quantity','PO Amount','PO Vendor Name','Receipt ID','Receipt Updated By','Receipt Date',
+            'Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date','Voucher Amount',
+            'Invoice ID','Invoice Date','Service Start Date','Service End Date','Total PO Amount','Total Amount Received']]
+
+        mask = np.column_stack([vendorrec_df[col].str.contains(self.var.get(), na=False, regex=False) for col in vendorrec_df])
+        vendor_rec = vendorrec_df.loc[mask.any(axis=1)]
+        # unique_rec = vendor_input.drop_duplicates(subset='PO Number')
+        
+        vendor_rec.to_csv('T:\\IMD Sourcing\\Atlas App\\Data\\atlasexport.csv', 
+                         encoding='windows-1252', index=False)
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\atlasexport.csv', 'open')     
+
+    def export_lookup(self):
+
+        df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252'
+             ,low_memory=False, dtype='str')
+
+        all_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
+            'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
+            'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
+            'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
+            'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
+            'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
+            'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
+            'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
+            'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
+            'Total PO Amount','Total Amount Received']]
+
+        mask = np.column_stack([all_df[col].str.contains(self.var.get(), na=False, regex=False) for col in all_df])
+        vendor_all = all_df.loc[mask.any(axis=1)]
+        
+        vendor_all.to_csv('T:\\IMD Sourcing\\Atlas App\\Data\\atlasexport.csv', 
+                         encoding='windows-1252', index=False)
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\atlasexport.csv', 'open')
+
+
+class PDFPage(tk.Frame):
+    
+    def __init__(self, parent, controller):
+        
+        tk.Frame.__init__(self,parent)
+        label = ttk.Label(self, text="Search for PDF", font=LARGE_FONT)
+        label.pack(pady=10,padx=10)
+        self.controller = controller
+        
+        self.label1 = ttk.Label(self, text='Search For: ')
+        self.pdf_entry = ttk.Entry(self)
+        self.label1.pack()
+        self.pdf_entry.pack()
+        self.pdf_entry.focus_set()
+
+        reqdf_button = ttk.Button(self, text='Requisition', command=self.req_pdf)
+        reqdf_button.pack()
+        
+        popdf_button = ttk.Button(self, text='PO', command=self.po_pdf)
+        popdf_button.pack()
+
+        invpdf_button = ttk.Button(self, text='    Invoice     ', command=self.inv_pdf)
+        invpdf_button.pack()
+
+        pocn_button = ttk.Button(self, text='POCN', command=self.pocn_msg)
+        pocn_button.pack()
+        
+        clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
+        clear_button.pack()
+        
+        back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SearchPage))
+        back_button.pack()
+        
+        home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+        home_button.pack()
+
+    def req_pdf(self):
+
+        os.startfile(r'T:\FISCAL\SHAREPOINT FILING DOC\REQUISITIONS\REQ{}.pdf'.format(self.pdf_entry.get()), 'open')
+
+    def po_pdf(self):
+
+        os.startfile(r'T:\FISCAL\SHAREPOINT FILING DOC\PURCHASE ORDERS\6014400000{}.pdf'.format(self.pdf_entry.get()), 'open')
+
+    def inv_pdf(self):
+
+        os.startfile(r'T:\FISCAL\SHAREPOINT FILING DOC\INVOICES\{}.pdf'.format(self.pdf_entry.get()), 'open')
+
+    def pocn_msg(self):
+
+        os.startfile(r'T:\FISCAL\SHAREPOINT FILING DOC\POCN\{}.msg'.format(self.pdf_entry.get()), 'open')
+
+    def clear_textbox(self):
+        self.pdf_entry.delete(0, 'end')
+
+        
+class ReportPage(LoginPage):
     
     def __init__(self, parent, controller):
         
         tk.Frame.__init__(self,parent)
         label = ttk.Label(self, text="Select a Report to Run", font=LARGE_FONT)
         label.pack(pady=10,padx=10)
+        self.controller = controller
         
-        req_button = ttk.Button(self, text='      Req to PO        ', command= self.req2po)
+        req_button = ttk.Button(self, text='       Req to PO        ', command= self.req2po)
         req_button.pack()
+
+        # req30_button = ttk.Button(self, text='      30 Day Reqs      ', command= self.req30)
+        # req30_button.pack()
                                   
-        po_button = ttk.Button(self, text='     PO to Receipt    ', command= self.po2rec)
-        po_button.pack()
+        # po_button = ttk.Button(self, text='     PO to Receipt    ', command= self.po2rec)
+        # po_button.pack()
         
         rec_button = ttk.Button(self, text='Receipt to Voucher', command= self.rec2voucher)
         rec_button.pack()
         
-        bal_button = ttk.Button(self, text='Remaining Balance', command= self.remainingbal)
-        bal_button.pack()
+        # bal_button = ttk.Button(self, text='Remaining Balance', command= self.remainingbal)
+        # bal_button.pack()
+
+        newreq_button = ttk.Button(self, text= '       Req Update      ', command = self.req_auto1)
+        newreq_button.pack()
+        
+        newpo_button = ttk.Button(self, text='       PO Update       ', command= self.po_auto)
+        newpo_button.pack()
+
+        newrec_button = ttk.Button(self, text='   Receipt Update   ', command= self.rec_auto)
+        newrec_button.pack()
         
         home_button = ttk.Button(self, text='           Home           ', command= lambda: controller.show_frame(HomePage))
         home_button.pack()
         
     def req2po(self):
         
-        df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        df = df.applymap(str)
+        df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252'
+                             ,low_memory=False)
         
-        df1 = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
+        req_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
                   'Requisition Date', 'Requisition Approval Date', 'Requisition Line Nbr','Item Description', 
-                  'Buyer Name','Comp. Object Req','Accounting Year Req','Department ID Req','Fund Code Req','Class Field Req', 
-                  'Project CostinG Business Unit Req','Project ID Req','PC Activity ID Req','PC Resource Type Req','PO Number']]
+                  'Buyer Name','RFQ Status','PO Number','PO Budget Check Status']]
 
-        requisitioner_list = ['Robinson Debra', 'Walton Timothy', 'Rhoads Jay', 'Garcia Karen', 'Birdwell Diana']
-        df2 = df1[df1['Requisitioner Name'].isin(requisitioner_list)]
+        req_df['Requisition Date'] = pd.to_datetime(req_df['Requisition Date'])
         
-        df3 = df2[(df2['Requisition ID'] != ' ') & (df2['PO Number'] == ' ')]
+        req_df = req_df[req_df['Requisitioner Name'].isin(req_list)].astype(str)
         
-        df3.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\req2po.csv', encoding='windows-1252', index=False)
+        req_df = req_df[(req_df['Requisition ID'] != ' ') & (req_df['PO Number'] == ' ')]
 
-        os.startfile('T:\\FISCAL\\FY 2019\\PURCHASING 2019\\P2P RAW DATA\\req2po.csv', 'open')
-        
-    def po2rec(self):
-        
-        df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        df = df.applymap(str)
-        
-        df1 = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                  'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','PO Business Unit',
-                  'PO Number','PO Date','PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status',
-                  'PO Budget Check Status','PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO',
-                  'DDO PO','Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
-                  'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Total PO Amount',
-                  'Total Amount Received']]
+        req_df = req_df[(req_df['PO Budget Check Status'] == 'Valid')]
 
-        requisitioner_list = ['Robinson Debra', 'Walton Timothy', 'Rhoads Jay', 'Garcia Karen', 'Birdwell Diana']
-        df2 = df1[df1['Requisitioner Name'].isin(requisitioner_list)]
-        
-        df3 = df2.loc[df2['PO Status'].isin(['Dispatched', 'Open'])]
-        
-        df4 = df3[(df3['PO Number'] != ' ') & (df3['Receipt ID'] == ' ')]
-        
-        df4.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\po2receipt.csv', encoding='windows-1252', index=False)
+        req_df = req_df.drop_duplicates('Requisition ID')
 
-        os.startfile('T:\\FISCAL\\FY 2019\\PURCHASING 2019\\P2P RAW DATA\\po2receipt.csv', 'open')
+        mask = req_df['Requisition Status'].isin(['Approved', 'Line Approved','Pending Approval'])
+        req_df = req_df[mask]
+
+        req_df['Requisition Date'] = pd.to_datetime(req_df['Requisition Date'])
+
+        mask1 = req_df['Requisition Date'] >= (pd.to_datetime('today') - datetime.timedelta(days=365))
+
+        req_df = req_df.loc[mask1]
+        
+        req_df.to_csv(r'T:\IMD Sourcing\Atlas App\Data\req2po.csv', encoding='windows-1252', index=False)
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\req2po.csv', 'open')
+
+    # def req30(self):
+
+    #     df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252'
+    #     ,low_memory=False, dtype='str')
+
+    #     req_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
+    #     'Requisition Date', 'Requisition Approval Date', 'Requisition Line Nbr','Item Description', 
+    #     'Buyer Name','Comp. Object Req','Accounting Year Req','Department ID Req','Fund Code Req','Class Field Req', 
+    #     'Project CostinG Business Unit Req','Project ID Req','PC Activity ID Req','PC Resource Type Req','PO Number', 'PO Budget Check Status']]
+
+        
+    #     req_df['Requisition Date'] = pd.to_datetime(req_df['Requisition Date'])
+    #     today = datetime.datetime.today()
+    #     req_df['Requisition Age'] = (today - req_df['Requisition Date']).dt.days
+
+    #     req_df = req_df[(req_df['Requisition Status'] == 'Approved')]
+
+    #     req_df = req_df[(req_df['PO Budget Check Status'] == 'Valid')]
+
+    #     req_df = req_df[(req_df['Requisition ID'] != ' ') & (req_df['PO Number'] == ' ')]
+
+    #     req_df = req_df[(req_df['Requisition Age'] < 365)]
+
+    #     req_df = req_df.drop_duplicates(subset='Requisition ID')
+
+    #     req30_df = req_df[(req_df['Requisition Age'] >= 30)]
+
+    #     req30_df.to_csv(r'T:\IMD Sourcing\Atlas App\Data\req30.csv', encoding='windows-1252', index=False)
+
+    #     os.startfile(r'T:\IMD Sourcing\Atlas App\Data\req30.csv', 'open')
+        
+    # def po2rec(self):
+        
+    #     df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252'
+    #                          ,low_memory=False)
+        
+    #     po_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name',
+    #       'Item Description','Buyer Name','PO Business Unit','PO Number','PO Date','PO Buyer Name','PO Line',
+    #       'Contract ID','PO Status','PO Budget Check Status','PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO',
+    #       'Accounting Year PO','DDO PO','Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',
+    #       'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Total PO Amount','Total Amount Received']]
+        
+    #     po_df = po_df[po_df['Requisitioner Name'].isin(req_list)].astype(str)
+        
+    #     po_df = po_df.loc[po_df['PO Status'].isin(['Dispatched', 'Open'])]
+        
+    #     po_df = po_df[(po_df['PO Number'] != ' ') & (po_df['Receipt ID'] == ' ')]
+
+    #     po_df = po_df[(po_df['PO Budget Check Status'] == 'Valid')]
+
+    #     po_df['Total Amount Received'] = po_df['Total Amount Received'].astype(str).astype(float)
+
+    #     po_df = po_df[(po_df['Total Amount Received'].isnull())]
+
+    #     po_df = po_df.drop_duplicates('PO Number')
+        
+    #     po_df.to_csv(r'T:\IMD Sourcing\Atlas App\Data\po2receipt.csv', index=False)
+
+    #     os.startfile('T:\\IMD Sourcing\\Atlas App\\Data\\po2receipt.csv', 'open')
         
     def rec2voucher(self):
         
-        df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        df = df.applymap(str)
+        df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252'
+                             ,low_memory=False)
         
-        df1 = df[['Requisition Name','Item Description','PO Number','PO Line','Contract ID','PO Status',
-                  'PO Budget Check Status','PO Vendor Name','Receipt ID','Receipt Updated By',
-                  'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                  'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                  'Total PO Amount','Total Amount Received']]
+        rec_df = df[['Ticket Number','Item Description','Requisitioner Name','PO Status','PO Number','PO Budget Check Status',
+                    'PO Line','Contract ID','PO Vendor Name','Receipt ID','Receipt Updated By','Receipt Date','Receipt Line',
+                    'Receipt Quantity','Receipt Status','Voucher ID','Total PO Amount','Total Amount Received','Purchase Method']]
+        
+        rec_df = rec_df[rec_df['Requisitioner Name'].isin(req_list)].astype(str)
+        
+        rec_df = rec_df.loc[rec_df['PO Status'].isin(['Dispatched', 'Open'])]
 
-        requisitioner_list = ['Robinson Debra', 'Walton Timothy', 'Rhoads Jay', 'Garcia Karen', 'Birdwell Diana']
-        df2 = df1[df1['Requisitioner Name'].isin(requisitioner_list)]
+        # rec_df = rec_df[rec_df['PO Budget Check Status'] == 'Valid']
         
-        df3 = df2.loc[df2['PO Status'].isin(['Dispatched', 'Open'])]
+        rec_df = rec_df[(rec_df['Receipt ID'] != ' ') & (rec_df['Voucher ID'] == ' ')]
         
-        df4 = df3[(df3['Receipt ID'] != ' ') & (df3['Voucher ID'] == ' ')]
-        
-        df5 = df4[df4['Receipt Status'] != 'Canceled']
-        
-        df5.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\receipt2voucher.csv', encoding='windows-1252', index=False)
+        rec_df = rec_df[rec_df['Receipt Status'] == 'Moved to Destination']
 
-        os.startfile('T:\\FISCAL\\FY 2019\\PURCHASING 2019\\P2P RAW DATA\\receipt2voucher.csv', 'open')
-        
-    def remainingbal(self):
-        
-        df = pd.read_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\p2pautoreport.csv',encoding='windows-1252', dtype='str')
-        pd.options.display.max_columns = None
-        pd.set_option('display.max_colwidth', -1)
-        df = df.applymap(str)
-        
-        df1 = df[['Ticket Number','Requisition ID','Requisition Name','Requisitioner Name','Requisition Status',
-                  'Requisition Date','Requisition Line Nbr','Item Description','Buyer Name','RFQ Status',
-                  'RFQ Open Date','RFQ Dispatch Date','PO Business Unit','PO Number','PO Date',
-                  'PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status',
-                  'PO Quantity','PO Amount','PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO',
-                  'Department ID PO','Fund Code PO','Class Field PO','Project CostinG Business Unit PO',  
-                  'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
-                  'Receipt Date','Receipt Line','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date',
-                  'Voucher Amount','Invoice ID','Invoice Date','Service Start Date','Service End Date',
-                  'Total PO Amount','Total Amount Received']]
+        rec_df = rec_df.drop_duplicates('Receipt ID')
 
-        requisitioner_list = ['Robinson Debra', 'Walton Timothy', 'Rhoads Jay', 'Garcia Karen', 'Birdwell Diana']
-        df2 = df1[df1['Requisitioner Name'].isin(requisitioner_list)]
-        
-        df3 = df2[(df2['Total PO Amount'] != df2['Total Amount Received'])]
-        
-        df3 = df2.loc[df2['PO Status'].isin(['Dispatched', 'Open'])]
-        
-        df4 = df3[(df3['Total PO Amount'] != df3['Total Amount Received'])]
-        
-        df4.to_csv(r'T:\FISCAL\FY 2019\PURCHASING 2019\P2P RAW DATA\remainingbalance.csv', encoding='windows-1252', index=False)
+        rec_df = rec_df[rec_df['Purchase Method'] != 'CC']
 
-        os.startfile('T:\\FISCAL\\FY 2019\\PURCHASING 2019\\P2P RAW DATA\\remainingbalance.csv', 'open')
-     
+        mask = rec_df['PO Vendor Name'].isin(['AMAZON COM', 'SURVEYMONKEY.COM','AMAZON COM INC'])
+        rec_df = rec_df[~mask]
+        
+        rec_df.to_csv(r'T:\IMD Sourcing\Atlas App\Data\receipt2voucher.csv', encoding='windows-1252', index=False)
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\receipt2voucher.csv', 'open')
+        
+    # def remainingbal(self):
+        
+    #     df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreport.csv',encoding='windows-1252'
+    #                          ,low_memory=False)
+        
+    #     bal_df = df[['Ticket Number','Requisition ID','Requisition Name','Requisition Status','Requisitioner Name','Item Description','PO Number',
+    #       'PO Date','PO Buyer Name','PO Line','Contract ID','Contract Line Number','PO Status','PO Budget Check Status','PO Quantity','PO Amount',
+    #       'PO Vendor Name','Comp. Object PO','Accounting Year PO','DDO PO','Department ID PO','Fund Code PO','Class Field PO',
+    #       'Project CostinG Business Unit PO',  'Project ID PO','PC Activity ID PO','PC Resource Type PO','Receipt ID','Receipt Updated By',
+    #       'Receipt Date','Receipt Quantity','Receipt Status','Voucher ID','Voucher Entered Date','Voucher Amount','Invoice ID','Invoice Date',
+    #       'Service Start Date','Service End Date','Total PO Amount','Total Amount Received']]
+        
+    #     bal_df = bal_df[bal_df['Requisitioner Name'].isin(req_list)].astype(str)
+        
+    #     bal_df = bal_df[(bal_df['Total PO Amount'] != bal_df['Total Amount Received'])]
+        
+    #     bal_df = bal_df.loc[bal_df['PO Status'].isin(['Dispatched', 'Open'])]
+        
+    #     bal_df = bal_df[(bal_df['Total PO Amount'] != bal_df['Total Amount Received'])]
+        
+    #     bal_df.to_csv(r'T:\IMD Sourcing\Atlas App\Data\remainingbalance.csv', encoding='windows-1252', index=False)
+
+    #     os.startfile(r'T:\IMD Sourcing\Atlas App\Data\remainingbalance.csv', 'open')   
+
+    def po_auto(self):
     
+        self.merge_df(entry_df, pending_po, p2p_df)
+        self.po_check()
+        self.po_print()
+        self.po_update()
+
+    def rec_auto(self):
+
+        self.mergerec_df(entry_df, pending_po, p2p_df)
+        self.rec_update()
+
+    def req_auto1(self):
+
+        self.req_check(pending_po)
+
+    def txdot_setup(self):
+
+        txdotnow_url = 'https://txdotnow.service-now.com/'
+
+        args = ['hide_console', ]
+        driver_options = webdriver.ChromeOptions()
+        driver_options.add_experimental_option('detach',True)
+        driver_options.add_argument('--log-level=3')
+
+        self.tx_driver = webdriver.Chrome(executable_path='C:\\Users\\Public\\chromedriver.exe', service_args=args, options=driver_options)
+        self.tx_driver.get(txdotnow_url)
+
+    def txdot_login(self, username, password):
+        
+        self.tx_driver.switch_to.frame(self.tx_driver.find_element_by_xpath('//*[@id="gsft_main"]'))
+        enter_user = self.tx_driver.find_element_by_id('user_name')
+        enter_user.send_keys(username)
+        
+        time.sleep(1)
+        
+        enter_password = self.tx_driver.find_element_by_id('user_password')
+        enter_password.send_keys(password)
+        self.tx_driver.find_element_by_css_selector('.pull-right.btn.btn-primary').click()
+        
+    def ppl_setup(self):
+
+        p2p_url = 'https://fin.txdot.gov/psp/psfinpd/EMPLOYEE/ERP/c/MANAGE_PURCHASE_ORDERS.TX_RUN_TXCPO001.GBL?Folder=MYFAVORITES'
+
+        args = ['hide_console', ]
+        driver_options = webdriver.ChromeOptions()
+        driver_options.add_experimental_option('detach',True)
+        driver_options.add_argument('--log-level=3')
+
+        self.ppl_driver = webdriver.Chrome(executable_path='C:\\Users\\Public\\chromedriver.exe', service_args=args, options=driver_options)
+        self.ppl_driver.get(p2p_url)
+
+    def ppl_login(self, username, password):
+        
+        self.ppl_driver.switch_to.default_content()
+        enter_user = self.ppl_driver.find_element_by_id('userid')
+        enter_user.send_keys(username)
+        
+        time.sleep(1)
+        
+        enter_password = self.ppl_driver.find_element_by_id('pwd')
+        enter_password.send_keys(password)
+        
+        self.ppl_driver.find_element_by_css_selector('#login > div > div.ps_signinentry > div:nth-child(8) > input').click()
+
+    def req_check(self, x):
+
+        x = x[x['assignment_group'] == 'IMD_PROCUREMENT']
+
+        x = x.reset_index()
+
+        x['Requisition ID'] = x['Requisition ID'].astype('str')
+
+        x.to_csv('T:\\IMD Sourcing\\Atlas App\\Data\\atlasreqreport.csv', 
+                         encoding='windows-1252', index=False)
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\atlasreqreport.csv', 'open')
+
+        row = 0
+        for ticket in x['Ticket Number']:
+
+            req_num = x.loc[row,'Requisition ID']
+            
+            self.txdot_setup()
+            self.txdot_login(self.controller.fetch_user, self.controller.fetch_pwd)
+
+            self.tx_driver.switch_to.default_content()
+            WebDriverWait(self.tx_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sysparm_search"]')))
+            self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').clear()
+            self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').send_keys(ticket)
+
+            time.sleep(1)
+
+            self.tx_driver.find_element_by_css_selector('.form-control.form-control-search').send_keys(u'\ue007')
+            self.tx_driver.switch_to.frame(self.tx_driver.find_element_by_xpath('//*[@id="gsft_main"]'))
+
+            time.sleep(1)
+
+            try:
+                WebDriverWait(self.tx_driver, 5).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sc_task.request_item.comments"]')))
+                self.tx_driver.find_element_by_xpath('//*[contains(text(),"' + req_num + '")]')
+                row +=1
+                self.tx_driver.close()
+            
+            except (NoSuchElementException, WebDriverException):
+
+                time.sleep(1)
+                self.tx_driver.find_element_by_xpath('//*[@id="sc_task.request_item.comments"]').send_keys('''ERP REQ#: {} has been submitted for this ticket.
+                This ticket will be updated when a PO has been issued by PRO Division.'''.format(req_num))
+
+                time.sleep(1)
+                self.tx_driver.find_element_by_xpath('//*[@id="sys_display.sc_task.assignment_group"]').clear()
+                self.tx_driver.find_element_by_xpath('//*[@id="sys_display.sc_task.assignment_group"]').send_keys('IMD_Pending_PO')
+
+                time.sleep(1)
+                WebDriverWait(self.tx_driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="header_add_attachment"]')))
+                self.tx_driver.find_element_by_xpath('//*[@id="header_add_attachment"]').click()
+                WebDriverWait(self.tx_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="attachment"]')))
+
+                upload = self.tx_driver.find_element_by_id('attachFile')
+                upload.send_keys(r'T:\FISCAL\SHAREPOINT FILING DOC\REQUISITIONS\REQ{}.pdf'.format(req_num))
+                WebDriverWait(self.tx_driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="attachment"]/div/div/header/button')))
+                self.tx_driver.find_element_by_xpath('//*[@id="attachment"]/div/div/header/button').click()
+
+                row +=1
+
+    def po_check(self):
+
+        self.atlas_po = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasporeport.csv', encoding='windows-1252', dtype=str)
+
+        newpo_list = []
+        row = 0
+        for ticket in self.atlas_po['Ticket Number']:
+
+            po_num = self.atlas_po.loc[row,'PO Number']
+            
+            self.txdot_setup()
+            self.txdot_login(self.controller.fetch_user, self.controller.fetch_pwd)
+
+            self.tx_driver.switch_to.default_content()
+            WebDriverWait(self.tx_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sysparm_search"]')))
+            self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').clear()
+            self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').send_keys(ticket)
+
+            time.sleep(1)
+
+            self.tx_driver.find_element_by_css_selector('.form-control.form-control-search').send_keys(u'\ue007')
+            self.tx_driver.switch_to.frame(self.tx_driver.find_element_by_xpath('//*[@id="gsft_main"]'))
+
+            time.sleep(1)
+
+            try:
+                WebDriverWait(self.tx_driver, 3).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sc_task.request_item.comments"]')))
+                self.tx_driver.find_element_by_xpath('//*[contains(text(),"' + po_num + '")]')
+                row +=1
+                self.tx_driver.close()
+            
+            except (NoSuchElementException, WebDriverException):
+
+                time.sleep(1)
+                newpo_list.append(po_num)
+                row +=1
+                self.tx_driver.close()
+
+        self.atlas_po = self.atlas_po[self.atlas_po['PO Number'].isin(newpo_list)]
+        
+    def merge_df(self, x, y, p):
+
+        x = x.drop_duplicates(subset=['Ticket Number', 'Requisition ID'])
+
+        df3 = pd.merge(x, y, on=['Ticket Number','Requisition ID'])
+
+        self.df4 = pd.merge(p, df3, on=['Requisition ID'])
+
+        self.df4 = self.df4[['assignment_group','Ticket Number', 'Requisition ID', 'PO Number', 'PO Date', 'PO Amount', 'PO Status']]
+
+        self.df4 = self.df4.drop_duplicates(subset=['PO Number', 'Ticket Number'])
+
+        self.df4['PO Amount'] = self.df4['PO Amount'].str.replace(' ','')
+
+        self.df4['PO Amount'] = self.df4['PO Amount'].str.replace(',','')
+
+        self.df4['PO Amount'] = self.df4['PO Amount'].astype(float)
+
+        # self.df4 = self.df4.loc[self.df4['assignment_group'] == 'IMD_Pending_PO']
+
+        self.df4 = self.df4.loc[self.df4['PO Status'] == 'Dispatched']
+
+        self.df4 = self.df4[self.df4['PO Date'].notnull()]
+
+        self.df4 = self.df4[(self.df4['PO Amount'] != 0.00)]
+
+        self.df4['PO Date'] = pd.to_datetime(self.df4['PO Date'])
+
+        mask = self.df4['PO Date'] >= (pd.to_datetime('today') - datetime.timedelta(days=5))
+
+        self.df4 = self.df4.loc[mask]
+
+        self.df4.to_csv('T:\\IMD Sourcing\\Atlas App\\Data\\atlasporeport.csv', 
+                         encoding='windows-1252', index=False)
+        
+    def po_print(self):
+        
+        # po_list = []
+        # for po in self.atlas_po['PO Number']:
+        #     po_list.append(po)
+
+        for self.number in self.atlas_po['PO Number']:
+                
+            self.ppl_setup()
+            self.ppl_login(self.controller.fetch_user, self.controller.fetch_pwd)
+
+            time.sleep(1)
+
+            self.ppl_driver.switch_to.default_content()
+            WebDriverWait(self.ppl_driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.XPATH, '//*[@id="ptifrmtgtframe"]')))
+            # self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+
+            time.sleep(1)
+
+            self.ppl_driver.find_element_by_css_selector('#RUN_CNTL_PUR_RUN_CNTL_ID').send_keys('PO_AUTO2')
+            WebDriverWait(self.ppl_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="#ICSearch"]')))
+            WebDriverWait(self.ppl_driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="#ICSearch"]')))
+            self.ppl_driver.find_element_by_xpath('//*[@id="#ICSearch"]').click()
+
+            time.sleep(3)
+
+            self.ppl_driver.switch_to.default_content()
+            WebDriverWait(self.ppl_driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.XPATH, '//*[@id="ptifrmtgtframe"]')))
+            # self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+
+            # time.sleep(1)
+
+            # WebDriverWait(self.ppl_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="RUN_CNTL_PUR_PO_ID"]')))
+            self.ppl_driver.find_element_by_xpath('//*[@id="RUN_CNTL_PUR_PO_ID"]').clear()
+            self.ppl_driver.find_element_by_xpath('//*[@id="RUN_CNTL_PUR_PO_ID"]').send_keys(self.number)
+            WebDriverWait(self.ppl_driver, 30).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="PRCSRQSTDLG_WRK_LOADPRCSRQSTDLGPB"]')))
+            self.ppl_driver.find_element_by_xpath('//*[@id="PRCSRQSTDLG_WRK_LOADPRCSRQSTDLGPB"]').click()
+
+            time.sleep(3)
+
+            self.ppl_driver.switch_to.default_content()
+            WebDriverWait(self.ppl_driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.XPATH, '//*[@id="ptModFrame_0"]')))
+            # self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptModFrame_0"]'))
+            # WebDriverWait(self.ppl_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="#ICSave"]')))
+            WebDriverWait(self.ppl_driver, 30).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="#ICSave"]')))
+            self.ppl_driver.find_element_by_xpath('//*[@id="#ICSave"]').click()
+
+            time.sleep(3)
+
+            WebDriverWait(self.ppl_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ptifrmtgtframe"]')))
+            self.ppl_driver.switch_to.default_content()
+            WebDriverWait(self.ppl_driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.XPATH, '//*[@id="ptifrmtgtframe"]')))
+            # self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+            # WebDriverWait(self.ppl_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="PRCSRQSTDLG_WRK_LOADRPTLIST"]')))
+            WebDriverWait(self.ppl_driver, 30).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="PRCSRQSTDLG_WRK_LOADRPTLIST"]')))
+            self.ppl_driver.find_element_by_xpath('//*[@id="PRCSRQSTDLG_WRK_LOADRPTLIST"]').click()
+
+            time.sleep(3)
+
+            self.ppl_driver.switch_to.default_content()
+            WebDriverWait(self.ppl_driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.XPATH, '//*[@id="ptifrmtgtframe"]')))
+            # self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+            # WebDriverWait(self.ppl_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ICTAB_2"]')))
+            WebDriverWait(self.ppl_driver, 30).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="ICTAB_2"]')))
+            self.ppl_driver.find_element_by_xpath('//*[@id="ICTAB_2"]').click()
+
+            time.sleep(3)
+
+            self.ppl_driver.switch_to.default_content()
+            WebDriverWait(self.ppl_driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.XPATH, '//*[@id="ptifrmtgtframe"]')))
+            # self.ppl_driver.switch_to.frame(self.ppl_driver.find_element_by_xpath('//*[@id="ptifrmtgtframe"]'))
+            WebDriverWait(self.ppl_driver, 30).until(EC.presence_of_element_located((By.XPATH, '//*[@id="CDM_WRK_REFRESH_BTN"]')))
+
+            time.sleep(1)
+
+            instance = self.ppl_driver.find_element_by_id('CDM_LIST_VW_PRCSINSTANCE$0').text
+            status = self.ppl_driver.find_element_by_id('CDM_LIST_VW_DISTSTATUS$0').text
+            timeout = time.time() + 60
+
+            while time.time() < timeout:
+
+                if (instance != self.ppl_driver.find_element_by_id('CDM_LIST_VW_PRCSINSTANCE$0').text and status == 'Posted'):
+                    break
+
+                else: 
+                    WebDriverWait(self.ppl_driver, 30).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="CDM_WRK_REFRESH_BTN"]')))
+                    self.ppl_driver.find_element_by_xpath('//*[@id="CDM_WRK_REFRESH_BTN"]').click()
+                    time.sleep(5)
+
+            else:
+                self.ppl_driver.close()
+                continue
+
+            self.i = self.ppl_driver.find_element_by_id('CDM_LIST_VW_CONTENTID$0').text
+
+            time.sleep(1)
+
+            self.download_pdf(self.controller.fetch_user, self.controller.fetch_pwd)
+
+            time.sleep(20)
+
+            self.ppl_driver.close()
+                
+    def download_pdf(self, username, password):
+
+        url = 'https://fin.txdot.gov/psreports/psfinpd/{}/PO_DISPATCH.pdf'.format(self.i)
+        
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        
+        r = requests.get(url, auth=(username, password), verify=False, stream=True)
+        r.raw.decode_content = True
+        
+        with open(r'T:\FISCAL\SHAREPOINT FILING DOC\PURCHASE ORDERS\60144{}.pdf'.format(self.number), 'wb') as f:
+            shutil.copyfileobj(r.raw, f)
+        
+    def po_update(self):
+        
+        # self.update_df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasporeport.csv', dtype=str)
+
+        self.atlas_po = self.atlas_po.reset_index()
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\atlasporeport.csv', 'open')
+
+        row = 0
+        for ticket in self.atlas_po['Ticket Number']:
+            
+            self.txdot_setup()
+            self.txdot_login(self.controller.fetch_user, self.controller.fetch_pwd)
+
+            self.tx_driver.switch_to.default_content()
+            WebDriverWait(self.tx_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sysparm_search"]')))
+            self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').clear()
+            self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').send_keys(ticket)
+
+            time.sleep(1)
+
+            self.tx_driver.find_element_by_css_selector('.form-control.form-control-search').send_keys(u'\ue007')
+            self.tx_driver.switch_to.frame(self.tx_driver.find_element_by_xpath('//*[@id="gsft_main"]'))
+
+            WebDriverWait(self.tx_driver, 10).until(EC.presence_of_element_located((By.ID, 'sc_task.u_peoplesoft_po_number')))
+
+            try:
+            
+                if self.atlas_po.loc[row,'PO Number'] in self.tx_driver.find_element_by_id('sc_task.u_peoplesoft_po_number').get_attribute('value'):
+                    row +=1
+                    self.tx_driver.close()
+                    continue
+                    
+                else:
+
+                    self.tx_driver.find_element_by_xpath('//*[@id="sc_task.request_item.comments"]').send_keys('''ERP PO#: {} has been submitted for this ticket.
+                    Routing ticket to the proper Assignment Group for receiving of the goods and/or service.'''.format(self.atlas_po.loc[row,'PO Number']))
+
+                    time.sleep(1)
+
+                    self.tx_driver.find_element_by_xpath('//*[@id="sys_display.sc_task.assignment_group"]').clear()
+                    self.tx_driver.find_element_by_xpath('//*[@id="sys_display.sc_task.assignment_group"]').send_keys('IMD_Pending_Receipt')
+
+                    time.sleep(1)
+
+                    self.tx_driver.find_element_by_xpath('//*[@id="sc_task.u_peoplesoft_po_number"]').send_keys('{}'.format(self.atlas_po.loc[row,'PO Number']))
+
+                    time.sleep(1)
+
+                    self.tx_driver.find_element_by_xpath('//*[@id="header_add_attachment"]').click()
+                    WebDriverWait(self.tx_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="attachment"]')))
+
+                    upload = self.tx_driver.find_element_by_id('attachFile')
+
+                    time.sleep(3)
+
+                    upload.send_keys(r'T:\FISCAL\SHAREPOINT FILING DOC\PURCHASE ORDERS\60144{}.pdf'.format(self.atlas_po.loc[row,'PO Number']))
+                    self.tx_driver.find_element_by_xpath('//*[@id="attachment"]/div/div/header/button').click()
+
+                    time.sleep(1)
+                    
+                    row +=1
+
+            except (NoSuchElementException, WebDriverException):
+                print('u got error boi')
+                # self.tx_driver.close()
+                row +=1
+
+    def mergerec_df(self, x, y, p):
+
+        x = x.drop_duplicates(subset=['Ticket Number', 'Requisition ID'])
+
+        df3 = pd.merge(x, y, on=['Ticket Number','Requisition ID'])
+
+        self.df4 = pd.merge(p, df3, on=['Requisition ID'])
+
+        self.df4 = self.df4[['Ticket Number', 'Requisition ID', 'PO Number', 'Receipt ID', 'Receipt Date','Total PO Amount','Total Amount Received']]
+
+        self.df4 = self.df4.drop_duplicates('Receipt ID')
+
+        self.df4 = self.df4[self.df4['Receipt Date'].notnull()]
+
+        self.df4['Receipt Date'] = pd.to_datetime(self.df4['Receipt Date'])
+
+        mask = self.df4['Receipt Date'] >= (pd.to_datetime('today') - datetime.timedelta(days=30))
+
+        self.df4 = self.df4.loc[mask]
+        
+        self.df4.to_csv('T:\\IMD Sourcing\\Atlas App\\Data\\atlasreceiptreport.csv', 
+                         encoding='windows-1252', index=False)
+
+    def rec_update(self):
+            
+        self.update_df = pd.read_csv(r'T:\IMD Sourcing\Atlas App\Data\atlasreceiptreport.csv', dtype=str)
+
+        os.startfile(r'T:\IMD Sourcing\Atlas App\Data\atlasreceiptreport.csv', 'open')
+
+        row = 0
+        for ticket in self.update_df['Ticket Number']:
+
+            receipt_num = self.update_df.loc[row,'Receipt ID']
+            
+            self.txdot_setup()
+            self.txdot_login(self.controller.fetch_user, self.controller.fetch_pwd)
+
+            self.tx_driver.switch_to.default_content()
+            WebDriverWait(self.tx_driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sysparm_search"]')))
+            self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').clear()
+            self.tx_driver.find_element_by_xpath('//*[@id="sysparm_search"]').send_keys(ticket)
+
+            time.sleep(1)
+
+            self.tx_driver.find_element_by_css_selector('.form-control.form-control-search').send_keys(u'\ue007')
+            self.tx_driver.switch_to.frame(self.tx_driver.find_element_by_xpath('//*[@id="gsft_main"]'))
+
+            time.sleep(1)
+
+            try:
+                WebDriverWait(self.tx_driver, 5).until(EC.presence_of_element_located((By.XPATH, '//*[@id="sc_task.request_item.comments"]')))
+                self.tx_driver.find_element_by_xpath('//*[contains(text(),"' + receipt_num + '")]')
+                row +=1
+                self.tx_driver.close()
+            
+            except (NoSuchElementException, WebDriverException):
+
+                time.sleep(1)
+
+                self.tx_driver.find_element_by_xpath('//*[@id="sc_task.request_item.comments"]').send_keys('''ERP Receipt#: {} has been entered into Peoplesoft.'''.format(receipt_num))
+
+                time.sleep(1)
+                
+                row +=1
+        
+
 app = P2P_Gui()
 app.mainloop()
-
-# Turn py file into .exe
-# C:\...pyinstaller.exe --onefile --windowed C:\...filename.py
