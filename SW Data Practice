@@ -1,0 +1,83 @@
+import pandas as pd
+import numpy as np
+import csv
+
+pd.options.display.max_columns = None
+
+sw_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\softwarereport.csv', encoding='utf8', dtype=str)
+hw_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', encoding='windows-1252')
+user_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\userlist.csv', encoding='windows-1252', dtype=str)
+
+build_list = []
+
+sw_df = sw_df[['Program Name','Version','Publisher','Device Name','Serial Number','Asset Number','InstallLocation','Install']]
+sw_df.rename(columns={'Serial Number':'SW_Serial Number'}, inplace=True)
+
+hwsw_merge = pd.merge(sw_df, hw_df, how='left', left_on='Asset Number', right_on='asset_tag')
+
+hwsw_merge = hwsw_merge[['Program Name','Version','Publisher','Device Name','SW_Serial Number','Asset Number','Last Connected (UTC)',
+'Usage Level','PC Class','model','assigned_to.department','assigned_to.user_name','warranty_expiration','install_status']]
+
+# print(hwsw_merge)
+
+# hwsw_merge['Publisher'] = hwsw_merge['Publisher'].map({'.':'ELTEC'})
+# hwsw_merge['Program Name'] = hwsw_merge['Program Name'].map({'MANAGER':'2017 PDFFORGE MANAGER'})
+# hwsw_merge['Publisher'] = np.where(hwsw_merge['Program Name'] == 'Modulus 7.0', 'TAMU Transportation Institute', hwsw_merge['Publisher'])
+# hwsw_merge['Publisher'] = np.where(hwsw_merge['Program Name'] == 'BridgeFDOTFonts', 'N/A', hwsw_merge['Publisher'])
+
+final_merge = pd.merge(hwsw_merge, user_df, how='left', left_on='assigned_to.user_name', right_on='user_name')
+
+final_merge = final_merge[['Program Name','Version','Publisher','Device Name','SW_Serial Number','Asset Number','Last Connected (UTC)','Usage Level',
+'PC Class','model','assigned_to.department','assigned_to.user_name','name','email','title','warranty_expiration','install_status']]
+
+program_list = final_merge['Program Name'].unique().tolist()
+
+# sw_count = final_merge.groupby('Program Name')['Asset Number'].nunique()
+# sw_count = final_merge.groupby(['Program Name','title'], as_index=False).count()
+# sw_count = sw_count.pivot(index='Program Name', columns='title', values='Asset Number')
+# sw_count = sw_count.rename_axis(None, axis=1).reset_index()
+# print(final_merge)
+
+sw_count = final_merge.groupby('Program Name').count()
+
+publisher_list = hwsw_merge['Publisher'].unique()
+
+# for x in publisher_list:
+# 	print(x)
+
+# publisher_df = hwsw_merge.loc[hwsw_merge['Publisher'] == 'ELTEC']
+# publisher_df = hwsw_merge.loc[hwsw_merge['Publisher'] == '@ 2013 CELARTEM, INC., DOING BUSINESS AS EXTENSIS. ALL RIGHTS RESERVED.']
+# publisher_df = hwsw_merge.loc[hwsw_merge['Publisher'] == 'Your Company Name']
+# publisher_df = hwsw_merge.loc[hwsw_merge['Publisher'] == 'TAMU Transportation Institute']
+# publisher_df = hwsw_merge.loc[hwsw_merge['Publisher'] == 'N/A']
+
+# program_df = hwsw_merge.loc[hwsw_merge['Program Name'] == 'MANAGER']
+
+# program_df = sw_df[sw_df['Program Name'].str.contains('MANAGER')]
+
+title_count = final_merge.groupby(['Program Name','title'])['Asset Number'].count().reset_index(name='Count')
+title_count = title_count.loc[(title_count['Count']!=0)]
+
+microsoft_df = final_merge.loc[(final_merge['Program Name']).str.contains('Microsoft')]
+microsoft_list = microsoft_df['Program Name'].unique().tolist()
+
+
+refine_df = final_merge[~final_merge['Program Name'].str.contains('Update')]
+
+
+
+
+# print(sw_df.columns)
+# print(sw_df)
+# print(hwsw_merge)
+# print(publisher_df)
+# print(program_df)
+# print(publisher_list)
+# print(user_df)
+# print(final_merge)
+# print(sw_count)
+# print(title_count)
+# print(program_list)
+# print(microsoft_df)
+# print(microsoft_list)
+print(refine_df)
