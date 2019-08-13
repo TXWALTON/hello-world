@@ -1,0 +1,875 @@
+import pandas as pd
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import datetime as dt
+from datetime import datetime, timedelta, date
+import time
+import matplotlib.dates as md
+import os, sys, inspect
+import openpyxl
+import os.path
+import csv
+import seaborn as sns
+import dateutil
+import glob
+
+### Inventory Data Ideas ###
+# pull POs from atlasreport.csv to show what has been ordered and expensed to date
+# burn rates for each month of each year
+# interative graph that displays merge2, daily_br
+
+pd.options.mode.chained_assignment = None
+
+absolute_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\absolutereport.csv',  thousands=',', encoding='windows-1252', dtype=str)
+txdotnow_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\CMDBreport.csv', thousands=',', encoding='windows-1252', dtype=str)
+ship_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesshipdata.csv', encoding='windows-1252', dtype=str)
+hdd_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\absoluteharddrivereport.csv', encoding= 'windows-1252', dtype=str)
+repairdf = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\DellProSupport.csv', encoding='windows-1252', dtype=str)
+inv_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\depotinventory.csv', encoding='windows-1252', dtype=str)
+ppl_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\peoplesoftactivedirectory.csv', encoding='windows-1252', dtype=str)
+class_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\pcclass.csv', encoding='windows-1252', dtype=str)
+# merged = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORT040919.csv', thousands=',', encoding='windows-1252', dtype=str)
+
+eng_dt = ['Precision Tower 5810','Workstation z800','Hewlett-Packard HP Z800 Workstation','Compaq 8200 Elite','HP Compaq 8200 Elite CMT PC',
+            'Workstation xw8200','Hewlett-Packard hp workstation xw8200','Precision T5600','Dell Precision T5610','Dell Inc. Precision T5600','Precision T5610',
+            'Precision T5810','Dell Inc. Precision Tower 5810','Precision Tower 7910','Dell Inc. Precision Tower 7910','Dell Inc. Precision T5610','Workstation xw8400',
+            'Hewlett-Packard HP xw8400 Workstation','Workstation xw8600','Hewlett-Packard HP xw8600 Workstation','Hewlett-Packard HP Compaq 6730s','Workstation z600',
+            'Hewlett-Packard HP Z600 Workstation','Workstation z400','Hewlett-Packard HP Z400','Hewlett-Packard HP Z400 Workstation','Z400 Xeon','Hewlett-Packard HP EliteBook 8740w',
+            'Panasonic Corporation CF-52PGNBX1M','Hewlett-Packard HP ProBook 4520s','Panasonic Corporation CF-53AAGZX1M','Dell Inc. Precision Tower 7810','Dell Inc. Precision T1700',
+            'Dell Precision T5600','Hewlett-Packard HP EliteBook 8560w','Hewlett-Packard XL508AV','Workstation xw4600','Hewlett-Packard HP xw4600 Workstation','Dell Inc. Precision 5820 Tower',
+            'Dell Inc. Precision 7920 Tower','DeLL PRECISION T5810','T7920','T5810','DeLL PRECISION T5810ll Precision T7910','Dell Precision T7910','DeLL PRECISION T5810ll Precision T7910',
+            'Dell Precision 5810','DELL PRECISION T5810','DELL PRECISION TOWER 5810','5810','7920','Dell Precision T5810','T7910','Precision 5820 Tower']
+
+eng_lt = ['Precision M6500','Dell Inc. Precision M6500','Dell Inc. Precision M6600','Precision M4700','Dell Inc. Precision M4700','Precision M4800',
+            'Dell Precision M4800','Dell Inc. Precision M4800','Dell Precision M4700','Precision 7510','Dell Inc. Precision 7510','Dell Inc. Precision 7520','Dell Inc. Precision 7530',
+            'DELL PRECISION 7510','DELL PRECISION 7520','M7520','M7510','Dell Precision 7510','DeLL PRECISION 7510ll Precision T7910','Dell Precision 7510 Laptop',
+            'Dell Precision 7520 Laptop','Precision 7520','7510','7520','7530','dell precision 7510','DELL PRECISION7520','DELL PRECISION 7510','DeLL PRECISION 7510ll Precision T7910',
+            'E7510','E7520','E7530','M4800','M7530','Precision 7530','DELL PRECISION 7510','DeLL PRECISION 7510ll Precision T7910','Dell Inc. Precision M7510',
+            'Dell Inc. Precision M7520','Dell Inc. Precision M7530','Dell Inc. Precision T7510','DELL PRECISON 7510','DeLL PRECISON 7510ll Precision T7910']
+
+exec_lt = ['XPS L421X','Dell Inc. XPS L421X','XPS L321X','Dell Inc. Dell System XPS L321X','XPS 8300','XPS13 9333','Dell Inc. XPS 13 9343','Dell Inc. XPS13 9333',
+            'XPS 13 9350','Dell XPS 13 L321X','Dell Inspiron 5759','EliteBook 8540p','EliteBook 2530P','HP Mini 5103','Hewlett-Packard HP Mini 5103','EliteBook 8740w',
+            'ProBook 4530','XPS 13','Dell XPS 13 9333','XPS14','XPS13 (2015)','XPS13 (2016)','Latitude 7275','Microsoft Surface Pro 4','Surface Pro 3','Dell Inc. XPS 13 9350'
+            'Dell Inc. XPS 13 9365','XPS']
+
+lw_lt = ['Latitude E7440','Dell Inc. Latitude E7440','7450','7470','Hewlett Packard Compaq TC4400 Tablet PC',
+            'Latitude 6430U','Dell Latitude 6430u','Dell Latitude E7440','Latitude E7450','ProBook 4520s','ProBook 4720','ProBook 4720s','ProBook 4520','EliteBook 8560w',
+            'Hewlett-Packard HP EliteBook 8560p','ProBook 6560b','Hewlett-Packard HP ProBook 6560b','ProBook 6730B','ProBook 4530s','Hewlett-Packard HP ProBook 4530s',
+            'ProBook 4730','ProBook 4730s','HP ProBook 4730s','Hewlett Packard EliteBook 2740p','Hewlett Packard EliteBook 2730p Notebook PC','Compaq Elite 8300',
+            'Hewlett-Packard HP Compaq Elite 8300 SFF','Hewlett-Packard HP Compaq Elite 8300 CMT','ThinkPad T520','ThinkPad X220','Compaq nc8230','Hewlett-Packard HP Compaq nc8230'
+            'Dell Inc. Latitude 6430U','Dell Inc. Latitude E7450','Dell Inc. Latitude E7470','Latitude E7470','Hewlett-Packard HP ProBook 4720s',
+            'Hewlett-Packard HP ProBook 4730s','Lenovo 42962W5','Lenovo 424049U','Lenovo 428757U','Dell Inc. Latitude 7480','Dell Inc. Latitude 7490', 'DELL LATITUDE 7480',
+            'E7480','E7470','Latitude 7480','Dell Precision e7470 Laptop','DELL LATITUDE 7470','DeLL LATITUDE E7470ll Precision T7910','7470','7480','7490',
+            'Dell Inc. Latitude E7480','Dell Latitude 7480','Dell Latitude E7470','DeLL LATITUDE E7470l','Dell Precision E7470 Laptop','E6420','E7450','e7470','E74870',
+            'E7490','Latitude 7490','DeLL LATITUDE E7470']
+
+two_in_one = ['Dell Inc. Latitude 5285','Dell Inc. Latitude 5289','Dell Inc. Latitude 7390 2-in-1', 'Dell Latitude 5289','Dell Latitude 5285','DELL LATITUDE 5285',
+            'E5285','5285','5289','Dell - Latitude 7390','Dell Latitude 5285 Tablet','Latitude 5285','TITUDE 5285','5825','Dell Inc. Latitude E5285',
+            'dell Inc. Latitude E7470','Dell Inc. Latitude E7490']
+
+std_dt = ['OptiPlex 7010','OptiPlex 9020','OptiPlex 7020','OptiPlex GX620','Dell Inc. OptiPlex 620',
+            'OptiPlex 745','Dell Inc. OptiPlex 745','Dell OptiPlex 745','Dell Inc. OptiPlex 320','Compaq Evo D510 CMT','Dell Inc. Latitude D520','Dell Inc. Latitude D810',
+            'Dell Inc. Latitude D820','Dell Inc. Latitude D620','Dell Inc. Latitude D630','Hewlett Packard Compaq Evo D500','Hewlett-Packard xw4400','Latitude D830',
+            'Dell Latitude D830','Dell Inc. Latitude D830','Gateway GT5464','OptiPlex 620','OptiPlex 780','Dell Optiplex 7010','Dell Optiplex 7020','Dell Optiplex 5040',
+            'Dell Inc. OptiPlex GX620','Dell Inc. OptiPlex 7010','Dell Inc. OptiPlex 7020','Dell Inc. OptiPlex 5040','Dell Inc. OptiPlex 5050','ified - Dell Inc. OptiPlex 7010',
+            'DELL OPTIPLEX 5050 SFF','DELL OPTIPLEX 5050','OptiPlex 5050','5040','5050','7010','7020','DELL LATITUDE E5040','Dell Optiplex 5040 Desktop','DeLL OPTIPLEX 5040 SFFll Precision T7910',
+            'Dell Optiplex 5050 Desktop','E5040','OptiPlex 5040','Dell Inc. OptiPlex 5060','Optiplex  5060','OptiPlex 5060']
+
+std_lt = ['Latitude E5520','Dell Inc. Latitude E5520','Latitude E5540','Latitude E5530 vPro','Dell Inc. Latitude E5530','Latitude E5530','Latitude E5530 non-vPro',
+            'Compaq dc7800','Latitude E5550','Latitude E5510','Dell Latitude E5510','Dell Inc. Latitude E5510','Dell Latitude E5520','Latitude E5500','Dell Latitude E5500',
+            'Dell Inc. Latitude E5500','Compaq dc7900','Hewlett-Packard HP Compaq dc7900 Small Form Factor','Compaq nc8430','Compaq 8510p','Hewlett-Packard HP Compaq 8510p',
+            'Compaq 6530b','Hewlett-Packard HP Compaq 6530b','Hewlett-Packard Compaq 6530b Notebook PC','Compaq 6730s','Hewlett-Packard EliteBook 8530P','Hewlett-Packard EliteBook 8540w',
+            'Hewlett-Packard Folio 13 Notebook','HP d530 CMT(DC577AV)','Compaq dc7100','Hewlett-Packard HP Compaq dc7100 CMT(DX438AV)','Compaq 8100 Elite','Hewlett Packard Compaq 8100 Elite',
+            'HP Compaq 8100 Elite CMT PC','Latitude 5530','Latitude 5540','Latitude 5550','Latitude 5570','1619____','Hewlett-Packard 1619____','Compaq d530','Hewlett-Packard HP d530',
+            'Compaq Evo D510','Compaq Evo D530','Dell Inc. Latitude E5530 vPro','Dell Latitude E5540','Dell Latitude E5530','Dell Inc. Latitude E5530 non-vPro','Dell Inc. Latitude E5540',
+            'Dell Inc. Latitude E5550','Dell Inc. Latitude E5570','Dell Inc. Latitude E6400','Latitude E5570','Hewlett-Packard HP Compaq 8100 Elite CMT PC','Hewlett-Packard HP Compaq 8100 Elite SFF PC',
+            'Hewlett-Packard HP Compaq 8200 Elite Convertible Mini','Hewlett-Packard HP Compaq 8200 Elite CMT PC','Hewlett Packard Compaq 8200 Elite','Hewlett-Packard HP Compaq 8200 Elite SFF PC',
+            'Hewlett-Packard HP COMPAQ 8200','Hewlett-Packard HP Compaq dc7900 Convertible Minitower','Hewlett-Packard HP Compaq dc7800 Convertible Minitower','Hewlett-Packard HP Compaq dc7800 Convertible Minitow',
+            'Hewlett-Packard HP Compaq dc7800 CMT','Latitude E6430','Dell Latitude E6430','Dell Inc. Latitude E6430','Dell Inc. Latitude E6520','Dell Inc. Latitude E6500',
+            'Dell Inc. CBX3','DELL__ CBX3___','Lenovo ThinkPad T520','Lenovo ThinkPad T500','Lenovo ThinkPad G41','Dell Inc. Latitude 5580','Hewlett-Packard Compaq 8100 Elite',
+            'Dell Inc. Precision 3530','Dell Inc. Latitude 5590','Inc. Latitude 5580','Dell E5580 Laptop','DELL LATITUDE 5580','DELL LATITUDE E5570','E5580','dell latitude 5580',
+            'DeLL LATITUDE E5570ll Precision T7910','Dell Latitude E5570','Dell Latitude E5570 Laptop','E5570','Dell Latitude 5580','DELL LATITUDE E5550','DELL LATITUDE E5540',
+            'DELL LATITUDE E7450','Dell Latitude 7480 Laptop','5550','5570','5580','5590','Dell E5580 Laptop','5540','Dell Inc. Latitude E5580','DeLL LATITUDE 5580 ll Precision T7910',
+            'DeLL LATITUDE E5570','E5540','E5550','e5580','E5590','Latitude 5580','Latitude 5590','LATITUDE E5570','DELL LATITUDE E5570','Dell Inc. Latitude E5590','E55580']
+
+rugged = ['Latitude E6530','Dell Inc. Latitude E6530','Dell Latitude E6530','Latitude E6420',
+            'Dell Inc. Latitude E7204','Dell Inc. Latitude 7424 Rugged Extreme','Latitude 14 Rugged Extreme','Latitude 14 Rugged Extreme (7404)','Dell Latitude 7404 Rugged',
+            'Panasonic Toughbook 53','Panasonic Corporation CF','Panasonic Corporation CF-53EJAZX1M','Panasonic Toughbook C1','Panasonic Toughbook 19','Panasonic Toughbook CF-52',
+            'Toughbook 52','Toughbook 53','Toughbook 30','Dell 6430 XFR','Dell Latitude 7402','Dell Latitude 7404','JTJQNY1','Dell Inc. Latitude 7212 Rugged Extreme Tablet',
+            'Dell Inc. Latitude 7414','Dell Inc. Latitude 14 Rugged Extreme (7404)','Dell Inc. Latitude E6420','6420U','Dell Latitude E6420 XFR','DELL LATITUDE RUGGED 7414',
+            'dell latitude rugged 7414','Dell 14 RUGGED EXTREME 7414 Laptop','DELL LATITUDE RUGGED 7404','Latitude 7404','Latitude Rugged 7414','E7414','Latitude Rugged E7414',
+            '7404','Dell 14 RUGGED EXTREME 7414','Dell Inc. Latitude 14 Rugged Extreme (7404)','DELL LATITUDE 7404','Dell Latitude 7404 Laptop','DELL LATITUDE 7404 RUGGED',
+            'DELL LATITUDE RUGGED 7212','DeLL LATITUDE RUGGED 7414ll Precision T7910','DELL LATTITUDE 14 RUGGED EXTREME 7404 RUGGED LAPTOP','E7404','Latitude 7414','Latitude 7424 Rugged Extreme',
+            'Rugged Latitude 7414','DELL Latitude 7404','Rugged 7414']
+
+tt_monitor = ['22 In Monitor','P2217','P2217H']
+tf_monitor = ['24 In Monitor','P2417H']
+ram = ['8GB of RAM','2x8GB RAM DDR4','8GB RAM DDR4 for 5570']
+battery = ['Battery']
+disk_drive = ['CD/DVD Drive','DVD Drive','External CD/DVD Drive','External DVD Drive']
+display_cable = ['Display Cable']
+eng_dock = ['Engineering Dock','Eng Dock']
+rugged_dock = ['Rugged Dock']
+standard_dock = ['Standard Dock', 'WD15 USB C Dock','WD15','Dock Standard','WD15 Dock','WD15 USB C Dock X 5']
+keyboard = ['Keyboard']
+mouse = ['Mouse']
+lock = ['Lock','Laptop Lock']
+power = ['Power Supply','180 W Power Supply','M4800 Power supply']
+
+pd.options.display.max_columns = None
+
+class Data:
+
+    def asset_merge(self):
+
+        # txdotnow.rename(columns={'Serial number': 'Serial Number'}, inplace=True)
+
+        # self.asset_df = pd.merge(self.absolute_merge, self.ppl_cmdb, on='Serial Number')
+        self.asset_df = pd.merge(self.cmdb_merge, self.absolute_merge, how='left', left_on='Serial Number', right_on='Serial Number')
+
+        # asset_df['Last Logon'] = pd.to_datetime(asset_df['Last Logon'].astype(str), format= '%d%m%Y',errors='coerce')
+        # asset_df['Warranty expiration'] = pd.to_datetime(asset_df['warranty_expiration'].astype(str), format= '%d%m%Y', errors='coerce')
+        # asset_df['Scheduled retirement'] = pd.to_datetime(asset_df['asset.retirement_date'].astype(str), format= '%d%m%Y', errors='coerce')
+
+        self.asset_df['Average Daily Usage (HH:MM)'] = self.asset_df['Average Daily Usage (HH:MM)'].str.replace(',', '')
+        self.asset_df['Average Daily Usage (HH:MM)'] = pd.to_datetime(self.asset_df['Average Daily Usage (HH:MM)'], unit='m').dt.strftime('%H:%M')
+
+        self.asset_df['assigned_to.user_name'] = self.asset_df['assigned_to.user_name'].astype(str)
+
+        self.asset_df['display_name'] = self.asset_df['display_name'].str[9:]
+        self.asset_df['Total Physical Memory (bytes)'] = self.asset_df['Total Physical Memory (bytes)'].str.extract('(\d+)', expand=False)
+
+        self.asset_df['Total Physical Memory (bytes)'] = pd.to_numeric(self.asset_df['Total Physical Memory (bytes)'], errors='coerce')
+        self.asset_df['Hard Disk Free Space (GB)'] = pd.to_numeric(self.asset_df['Hard Disk Free Space (GB)'], errors='coerce')
+
+        self.final_df = self.asset_df[['Last Connected (UTC)', 'Average Daily Usage (HH:MM)', 'Usage Level', 
+        'Serial Number', 'OS > Name','ci', 'asset_tag', 'assigned_to', 'display_name','assigned_to.department', 
+        'assigned_to.user_name', 'assigned_to.email', 'assigned_to.location', 'assigned_to.location.street', 'assigned_to.location.city', 
+        'warranty_expiration', 'retirement_date', 'install_status', 'Total Physical Memory (bytes)', 'Hard Disk Free Space (GB)']]
+
+        self.final_df.to_excel(r'C:\Users\TWALTON\Desktop\HWASSETREPORT.xlsx', 
+                                 encoding='windows-1252', index=False)
+
+        # self.final_df.to_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', 
+        #                          encoding='windows-1252', index=False)
+
+        os.startfile(r'C:\Users\TWALTON\Desktop\HWASSETREPORT.xlsx', 'open')
+
+    def usage_breakdown(self):
+
+        df = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', encoding='windows-1252')
+
+        df['Scheduled Retirement'] = pd.to_datetime(df['Scheduled Retirement'], errors='coerce')
+
+        df = df.groupby(['Usage Level', 'PC Class'], as_index=False).count()
+        df = df[['Usage Level','Serial number', 'PC Class']]
+        df = df.pivot(index='PC Class', columns='Usage Level', values='Serial number')
+        df = df.rename_axis(None, axis=1).reset_index()
+
+        # print(df)
+
+        pos = list(range(len(df['Heavily Used'])))
+        width = 0.2
+
+        fig, ax = plt.subplots(figsize=(15,10))
+
+        plt.bar(pos, df['Heavily Used'], width, alpha=0.5, color='#EE3224', label=df['PC Class'][0])
+        plt.bar([p + width for p in pos], df['Lightly Used'], width, alpha=0.5, color='#F78F1E', label=df['PC Class'][1])
+        plt.bar([p + width*2 for p in pos], df['Moderately Used'], width, alpha=0.5, color='#FFC222', label=df['PC Class'][2])
+        plt.bar([p + width*3 for p in pos], df['Not Used'], width, alpha=0.5, color='#CE8E00', label=df['PC Class'][3])
+
+        ax.set_title('PC Class Usage Level')
+        ax.set_xticks([p + 1.5 * width for p in pos])
+        ax.set_xticklabels(df['PC Class'])
+
+        plt.xlim(min(pos) - width, max(pos) + width*4)
+        plt.ylim([0, max(df['Moderately Used'] + 250)])
+
+        plt.legend(['Heavily Used', 'Lightly Used', 'Moderately Used', 'Not Used'], loc='upper left')
+        plt.grid()
+
+        plt.show()
+
+    def cmdb_asset(self):
+
+        file = r'C:\Users\TWALTON\Desktop\python hw data\alm hardware'
+        cmdb_csv = glob.glob(file +'/*.csv')
+        frame = pd.DataFrame
+        list = []
+
+        for f in cmdb_csv:
+            df = pd.read_csv(f, index_col=None, header=0, encoding= 'windows-1252', low_memory=False)
+            df = df[['ci','serial_number', 'asset_tag', 'display_name', 'assigned_to','assigned_to.user_name', 'assigned_to.email', 'assigned_to.department', 
+            'model','assigned_to.location', 'assigned_to.location.street', 'assigned_to.location.city','warranty_expiration', 
+                                                'retirement_date', 'install_status']]
+            df.rename(columns={'serial_number':'Serial Number'}, inplace=True)
+            list.append(df)
+        self.cmdb_merge = pd.concat(list, sort=False)
+
+        self.cmdb_merge.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\CMDBreport.csv')
+
+        camp_inv = self.cmdb_merge.loc[self.cmdb_merge['install_status'] == 'In stock']
+        camp_inv.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\depotinventory.csv', encoding='windows-1252', index=False)
+
+    def ship_data(self, shipdf):
+
+        self.shipdf = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesshipdata.csv', encoding='windows-1252', dtype=str)
+        self.shipdf['PC Class'] = ''
+        self.shipdf['Pro Support'] = ''
+        self.shipdf['In House Repair'] = ''
+
+        repairdf = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\DellProSupport.csv', encoding='windows-1252', dtype=str)
+
+        row = 0
+        for model in range(len(self.shipdf)):
+
+            if self.shipdf.loc[model, 'MODEL'] in eng_dt:
+                self.shipdf.loc[model,'PC Class'] = 'Engineer Desktop'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in eng_lt:
+                self.shipdf.loc[model,'PC Class'] = 'Engineer Laptop'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in exec_lt:
+                self.shipdf.loc[model,'PC Class'] = 'Executive Laptop'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in lw_lt:
+                self.shipdf.loc[model,'PC Class'] = 'Light Weight Laptop'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in two_in_one:
+                self.shipdf.loc[model,'PC Class'] = '2 in 1'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in std_dt:
+                self.shipdf.loc[model,'PC Class'] = 'Standard Desktop'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in std_lt:
+                self.shipdf.loc[model,'PC Class'] = 'Standard Laptop'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in rugged:
+                self.shipdf.loc[model,'PC Class'] = 'Rugged Laptop'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in tt_monitor:
+                self.shipdf.loc[model,'PC Class'] = '22" Monitor'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in tf_monitor:
+                self.shipdf.loc[model,'PC Class'] = '24" Monitor'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in ram:
+                self.shipdf.loc[model,'PC Class'] = 'RAM'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in battery:
+                self.shipdf.loc[model,'PC Class'] = 'Battery'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in disk_drive:
+                self.shipdf.loc[model,'PC Class'] = 'Disk Drive'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in display_cable:
+                self.shipdf.loc[model,'PC Class'] = 'Display Cable'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in eng_dock:
+                self.shipdf.loc[model,'PC Class'] = 'Engineer Dock'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in rugged_dock:
+                self.shipdf.loc[model,'PC Class'] = 'Rugged Dock'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in standard_dock:
+                self.shipdf.loc[model,'PC Class'] = 'Standard Dock'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in keyboard:
+                self.shipdf.loc[model,'PC Class'] = 'Keyboard'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in mouse:
+                self.shipdf.loc[model,'PC Class'] = 'Mouse'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in lock:
+                self.shipdf.loc[model,'PC Class'] = 'Lock'
+                row+=1
+
+            elif self.shipdf.loc[model, 'MODEL'] in power:
+                self.shipdf.loc[model,'PC Class'] = 'Power Supply'
+                row+=1
+
+            else:
+                self.shipdf.loc[model, 'PC Class'] = 'NA'
+                row+=1
+
+        for support in range(len(repairdf['Received Asset'])):
+
+            self.shipdf['Pro Support'] = np.where(repairdf.loc[support, 'Received Asset'] in self.shipdf['ASSET TAG NUMBER'], 'Y', 'N')
+
+        for house in range(len(repairdf['In House'])):
+
+            self.shipdf['In House Repair'] = np.where(repairdf.loc[house, 'In House'] in self.shipdf['ASSET TAG NUMBER'], 'Y', 'N')
+
+        self.shipdf.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\herculesdata.csv', encoding='windows-1252', index=False)
+
+        # os.startfile(r'C:\Users\TWALTON\Desktop\python hw data\herculesdata.csv', 'open')
+
+        self.shipdf['DATE SHIPPED'] = pd.to_datetime(self.shipdf['DATE SHIPPED'], format='%m/%d/%Y', errors='coerce')
+        min_date = self.shipdf['DATE SHIPPED'].min()
+        max_date = self.shipdf['DATE SHIPPED'].max()
+        ay_start = dt.datetime(2018,9,1).strftime('%Y-%m-%d')
+        ay_end = dt.datetime(2019,8,31).strftime('%Y-%m-%d')
+        today = pd.to_datetime('today').strftime('%Y-%m-%d')
+        self.days = np.busday_count(min_date.date(), max_date.date())
+        self.ay_days = np.busday_count(ay_start, today)
+        self.to_date = np.busday_count(today, ay_end)
+
+        # mask = (self.shipdf['DATE SHIPPED'] < ay_start) & (self.shipdf['DATE SHIPPED'] <= today)
+        # mask = (self.shipdf['DATE SHIPPED'] < ay_start) & (self.shipdf['DATE SHIPPED'] <= ay_end)
+
+        mask = self.shipdf['DATE SHIPPED'].between(ay_start, ay_end)
+
+        ay_hlm = self.shipdf[mask]
+
+        # print(ay_start, ay_end)
+        # print(ay_hlm)
+
+        self.ship_table = self.shipdf.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Refurb'], aggfunc='count')
+        self.ship_table.columns = self.ship_table.columns.droplevel(0)
+        self.ship_table = self.ship_table.reset_index().rename_axis(None, axis=1)
+        self.ship_table = self.ship_table.dropna()
+        self.ship_table['New Device Burn Rate'] = self.ship_table['N'].apply(lambda x: x/self.days)
+        self.ship_table['Refurb Device Burn Rate'] = self.ship_table['Y'].apply(lambda x: x/self.days)
+        self.ship_table['Total Ship Burn Rate'] = self.ship_table['New Device Burn Rate'] + self.ship_table['Refurb Device Burn Rate']
+
+        # print(self.ship_table)
+
+        hlm_df = ay_hlm.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['HLM'], aggfunc='count')
+        hlm_df.columns = hlm_df.columns.droplevel(0)
+        hlm_df = hlm_df.reset_index().rename_axis(None, axis=1)
+
+        ay_df = ay_hlm.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Refurb'], aggfunc='count')
+        ay_df.columns = ay_df.columns.droplevel(0)
+        ay_df = ay_df.reset_index().rename_axis(None, axis=1)
+
+        # print(hlm_df)
+
+        self.ship_merge = pd.merge(self.ship_table, hlm_df, on='PC Class').merge(ay_df,on='PC Class')
+        self.ship_merge.rename(columns={'N_x':'New Device', 'Y_x':'Refurb Device', 'N_y':'No HLM', 'Y_y':'HLM'}, inplace=True)
+        self.ship_merge.rename(columns={'N':'AY New Device','Y':'AY Refurb Device'}, inplace=True)
+
+        print(self.ship_merge)
+
+    def inventory_calculations(self, inventory):
+
+        vba_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', encoding='windows-1252', dtype=str)
+        vba_df['Scheduled Retirement'] = pd.to_datetime(vba_df['Scheduled Retirement'], errors='coerce')
+
+        inv_status = ['In stock', 'In maintenance']
+        inv_count = vba_df.loc[vba_df['install_status'].isin(inv_status)]
+        # print(inv_count)
+
+        all_status = ['In maintenance','In use','In transit']
+        all_count = vba_df.loc[vba_df['install_status'].isin(all_status)]
+        all_count = all_count.dropna(subset=['assigned_to'])
+        # print(all_count)
+
+        eol_count = vba_df[vba_df['Scheduled Retirement'] < pd.to_datetime('today')]
+        # print(eol_count)
+
+        inv_pivot = inv_count.pivot_table(values='asset_tag', index='PC Class', aggfunc='count')
+        inv_pivot = inv_pivot.reset_index().rename_axis(None, axis=1)
+        inv_pivot = inv_pivot.dropna()
+        inv_pivot.rename(columns={'asset_tag':'Total Inventory1'}, inplace=True)
+        # print(inv_pivot)
+
+        all_pivot = all_count.pivot_table(values='asset_tag',index='PC Class',aggfunc='count')
+        all_pivot = all_pivot.reset_index().rename_axis(None, axis=1)
+        all_pivot = all_pivot.dropna()
+        # print(all_pivot)
+
+        all_pivot['HLM Targets'] = (all_pivot['asset_tag']*.25)
+        all_pivot.rename(columns={'asset_tag':'Total Assets'}, inplace=True)
+
+        # print(all_pivot)
+
+        eol_pivot = eol_count.pivot_table(values='asset_tag',index='PC Class',aggfunc='count')
+        eol_pivot = eol_pivot.reset_index().rename_axis(None, axis=1)
+        eol_pivot = eol_pivot.dropna()
+        eol_pivot.rename(columns={'asset_tag':'EOL Devices'}, inplace=True)
+        # print(eol_pivot)
+
+        multi_merge = inv_pivot.merge(all_pivot,on='PC Class').merge(eol_pivot,on='PC Class')
+        # print(multi_merge)
+
+
+        # inventory['model'] = inventory['model'].str[9:]
+        inventory['PC Class'] = ''
+
+        row = 0
+        for model in range(len(inventory)):
+
+            if inventory.loc[model, 'model'] in eng_dt:
+                inventory.loc[model,'PC Class'] = 'Engineer Desktop'
+                row+=1
+
+            elif inventory.loc[model, 'model'] in eng_lt:
+                inventory.loc[model,'PC Class'] = 'Engineer Laptop'
+                row+=1
+
+            elif inventory.loc[model, 'model'] in exec_lt:
+                inventory.loc[model,'PC Class'] = 'Executive Laptop'
+                row+=1
+
+            elif inventory.loc[model, 'model'] in lw_lt:
+                inventory.loc[model,'PC Class'] = 'Light Weight Laptop'
+                row+=1
+
+            elif inventory.loc[model, 'model'] in two_in_one:
+                inventory.loc[model,'PC Class'] = '2 in 1'
+                row+=1
+
+            elif inventory.loc[model, 'model'] in std_dt:
+                inventory.loc[model,'PC Class'] = 'Standard Desktop'
+                row+=1
+
+            elif inventory.loc[model, 'model'] in std_lt:
+                inventory.loc[model,'PC Class'] = 'Standard Laptop'
+                row+=1
+
+            elif inventory.loc[model, 'model'] in rugged:
+                inventory.loc[model,'PC Class'] = 'Rugged Laptop'
+                row+=1
+
+            # elif self.inventory.loc[model, 'MODEL'] in tt_monitor:
+            #     self.inventory.loc[model,'PC Class'] = '22" Monitor'
+            #     row+=1
+
+            # elif self.inventory.loc[model, 'MODEL'] in tf_monitor:
+            #     self.inventory.loc[model,'PC Class'] = '24" Monitor'
+            #     row+=1
+
+            else:
+                inventory.loc[model, 'PC Class'] = 'NA'
+                row+=1
+
+        inv_table = inventory.pivot_table(values='asset_tag', index=['PC Class'], aggfunc='count')
+        # inv_table.columns = inv_table.columns.droplevel(0)
+        inv_table = inv_table.reset_index().rename_axis(None, axis=1)
+        # inv_table = inv_table.dropna()
+
+        print(inv_table)
+
+        table_merge = pd.merge(inv_table, self.ship_merge, on='PC Class')
+        # print(table_merge)
+
+        table_merge['Minimum Lead Time Inventory'] = table_merge['Total Ship Burn Rate'].apply(lambda x: x*25)
+        table_merge['Projected Reorder Date'] = (table_merge['asset_tag'] - table_merge['Minimum Lead Time Inventory'])/table_merge['Total Ship Burn Rate']
+        table_merge['Projected Reorder Date'] = datetime.now() + table_merge['Projected Reorder Date'].apply(lambda x: dt.timedelta(days= x))
+        table_merge['Projected Reorder Date'] = table_merge['Projected Reorder Date'].dt.date
+
+        # print(table_merge)
+
+        final_table = pd.merge(table_merge, multi_merge, how='outer', on='PC Class')
+
+        today = pd.to_datetime('today').strftime('%Y-%m-%d')
+        ay_end = dt.datetime(2019,8,31).strftime('%Y-%m-%d')
+        ay_days = np.busday_count(today, ay_end)
+
+        # print(final_table)
+
+        # BAU burn rate refers do devices shipped that were not considered as HLM
+
+        final_table['BAU Burn Rate'] = final_table['No HLM'].apply(lambda x: x/self.ay_days)
+        final_table['HLM Burn Rate'] = (final_table['HLM Targets'] - final_table['HLM'])/self.to_date
+        final_table['Total Burn Rate'] = final_table['HLM Burn Rate'] + final_table['BAU Burn Rate']
+        final_table['AY New Device Burn Rate'] = final_table['AY New Device'].apply(lambda x: x/self.ay_days)
+        final_table['AY Refurb Device Burn Rate'] = final_table['AY Refurb Device'].apply(lambda x: x/self.ay_days)
+        final_table.rename(columns={'asset_tag':'Total Inventory'}, inplace=True)
+
+        final_table = final_table[['PC Class','Total Assets','Total Inventory','EOL Devices','HLM Targets','New Device','Refurb Device','No HLM','HLM','AY New Device',
+                                    'AY Refurb Device','New Device Burn Rate','Refurb Device Burn Rate','Total Ship Burn Rate','Minimum Lead Time Inventory', 
+                                    'Projected Reorder Date','BAU Burn Rate','HLM Burn Rate','AY New Device Burn Rate','AY Refurb Device Burn Rate','Total Burn Rate']]
+
+        final_table.rename(columns={'New Device':'New Devices Shipped'}, inplace=True)
+        final_table.rename(columns={'Refurb Device':'Refurb Devices Shipped'}, inplace=True)
+        final_table.rename(columns={'No HLM':'BAU Shipped'}, inplace=True)
+        final_table.rename(columns={'HLM':'HLM Shipped'}, inplace=True)
+
+        print(final_table)
+
+        final_table.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\inventorymodel.csv', 
+                 encoding='windows-1252', index=False)
+
+        daily_br = self.shipdf.pivot_table(values=['AIRBILL NUMBER'], index=['DATE SHIPPED'], columns=['PC Class'], aggfunc='count')
+        daily_br.fillna(0.0, inplace=True)
+        daily_br.columns = daily_br.columns.droplevel(0)
+        daily_br = daily_br.reset_index().rename_axis(None, axis=1)
+
+        daily_br.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\dailybr.csv', encoding='windows-1252', index=False)
+
+        # print(daily_br)
+
+        # ETA
+        # inventory forecast
+        # reorder date
+        # cost
+
+        # print(final_table)
+
+    def absolute_merge(self, hddf, absolute):
+
+        hddf = hddf.loc[hddf['Volume Label'] == '(system drive)']
+
+        hddf = hddf[['Device Name', 'Hard Disk Free Space (MB)']]
+        hddf['Hard Disk Free Space (MB)'] = pd.to_numeric(hddf['Hard Disk Free Space (MB)'], errors='coerce').fillna(0)
+        hddf['Hard Disk Free Space (MB)'].astype(np.int64)
+        hddf.rename(columns={'Hard Disk Free Space (MB)':'Hard Disk Free Space (GB)'}, inplace=True)
+
+        hddf['Hard Disk Free Space (GB)'] = hddf['Hard Disk Free Space (GB)'].apply(lambda x: x/1000)
+
+        self.absolute_merge = pd.merge(absolute, hddf, on='Device Name')
+
+    def peoplesoft_merge(self, ppl, cmdb):
+
+        ppl.rename(columns={'EMAILID':'Email'}, inplace=True)
+        cmdb.rename(columns={'assigned_to.email':'Email'}, inplace=True)
+        self.ppl_cmdb = pd.merge(cmdb, ppl, how='left', left_on='Email', right_on='Email')
+
+        self.ppl_cmdb = self.ppl_cmdb[['Configuration Item','Serial number', 'Asset tag', 'Display name', 'Assigned to',
+        'User ID', 'Email', 'Department', 'Location', 'Street', 'City','Warranty expiration', 'Scheduled retirement', 
+        'State']]
+
+        self.ppl_cmdb.rename(columns={'Serial number':'Serial Number'}, inplace=True)
+
+        # self.ppl_cmdb.to_csv(r'C:\Users\TWALTON\Desktop\pplcmdbmergetest.csv', 
+        #                          encoding='windows-1252', index=False)
+
+        # os.startfile(r'C:\Users\TWALTON\Desktop\pplcmdbmergetest.csv', 'open')
+
+    def run_vba(self):
+
+        # try:
+
+        xlApp = Dispatch('Excel.Application')
+        # xlsPath = os.path.expanduser('C:\\Users\\TWALTON\\Documents\\assetreportvba.xlsm')
+        xlApp.Workbooks.Open('C:\\Users\\TWALTON\\Documents\\assetreportvba.xlsm')
+        xlApp.Application.Run('Module1')
+        # wb.Save()
+        # xlApp.Quit()
+        print('Macro ran successfully')
+
+        # except:
+        #     print('Error found while running excel macro')
+        #     xlApp.Quit()
+        #     pass
+
+        # if os.path.exists(r'C:\Users\TWALTON\Desktop\CMDBreport.xlsx'):
+        #     xl = win32com.client.DispatchEx('Excel.Application')
+        #     xl.Workbooks.Open(os.path.abspath(r'C:\Users\TWALTON\Documents\assetreportvba.xlsm'))
+        #     xl.Application.Run(r'C:\Users\TWALTON\Documents\assetreportvba.xlsm!Module1')
+        #     xl.Application.Quit()
+        #     del xl
+
+    def br_historical(self):
+
+        self.shipdf['Month Year'] = self.shipdf['DATE SHIPPED'].dt.to_period('M')
+
+        today = pd.to_datetime('today').strftime('%Y-%m-%d')
+        ay17_start = dt.datetime(2016,9,1).strftime('%Y-%m-%d')
+        ay17_end = dt.datetime(2017,8,31).strftime('%Y-%m-%d')
+        ay17_days = np.busday_count(ay17_start, ay17_end)
+
+        mask = self.shipdf['DATE SHIPPED'].between(ay17_start, ay17_end)
+        ay17_br = self.shipdf[mask]
+
+        ay17_table = ay17_br.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Month Year'], aggfunc='count')
+        # print(ay17_table)
+
+        ay18_start = dt.datetime(2017,9,1).strftime('%Y-%m-%d')
+        ay18_end = dt.datetime(2018,8,31).strftime('%Y-%m-%d')
+        ay18_days = np.busday_count(ay18_start, ay18_end)
+
+        mask = self.shipdf['DATE SHIPPED'].between(ay18_start, ay18_end)
+        ay18_br = self.shipdf[mask]
+
+        ay18_table = ay18_br.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Month Year'], aggfunc='count')
+        # print(ay18_table)
+
+        ay19_start = dt.datetime(2018,9,1).strftime('%Y-%m-%d')
+        ay19_end = dt.datetime(2019,8,31).strftime('%Y-%m-%d')
+        ay19_days = np.busday_count(ay19_start, ay19_end)
+
+        mask = self.shipdf['DATE SHIPPED'].between(ay19_start, ay19_end)
+        ay19_br = self.shipdf[mask]
+
+        ay19_table = ay19_br.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Month Year'], aggfunc='count')
+        # print(ay19_table)
+
+        merge1 = pd.merge(ay17_table, ay18_table, how='right', right_on='PC Class',left_on='PC Class')
+        # print(merge1)
+
+        self.merge2 = pd.merge(merge1, ay19_table, how='right', right_on='PC Class',left_on='PC Class')
+        self.merge2.columns = self.merge2.columns.droplevel(0)
+        self.merge2 = self.merge2.reset_index()
+        self.merge2.fillna(0.0, inplace=True)
+        # print(self.merge2)
+        self.final_merge = self.merge2.transpose()
+        # print(self.final_merge)
+
+        # self.merge2 = self.merge2.transpose()
+        # self.merge2 = self.merge2.reset_index()
+        # self.merge2.columns = self.merge2.columns.droplevel(0)
+        # self.merge2 = self.merge2.drop(self.merge2.columns[[0]], axis=1)
+        # self.merge2 = self.merge2.astype(float)
+        # print(self.merge2)
+
+        self.merge2.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\monthlybr.csv', 
+                 encoding='windows-1252', index=False)
+
+
+    def br_monthly_visual(self):
+
+        monthly_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\monthlybr.csv', encoding='windows-1252')
+        monthly_df['DATE SHIPPED'] = pd.to_datetime(monthly_df['DATE SHIPPED'], errors='coerce')
+        monthly_df['2 in 1'] = monthly_df['2 in 1']/21.5
+        monthly_df['22" Monitor'] = monthly_df['22" Monitor']/21.5
+        monthly_df['24" Monitor'] = monthly_df['24" Monitor']/21.5
+        monthly_df['Engineer Desktop'] = monthly_df['Engineer Desktop']/21.5
+        monthly_df['Engineer Laptop'] = monthly_df['Engineer Laptop']/21.5
+        monthly_df['Executive Laptop'] = monthly_df['Executive Laptop']/21.5
+        monthly_df['Light Weight Laptop'] = monthly_df['Light Weight Laptop']/21.5
+        monthly_df['Rugged Laptop'] = monthly_df['Rugged Laptop']/21.5
+        monthly_df['Standard Desktop'] = monthly_df['Standard Desktop']/21.5
+        monthly_df['Standard Laptop'] = monthly_df['Standard Laptop']/21.5
+
+        print(monthly_df)
+
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['22" Monitor'])
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['24" Monitor'])
+
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['2 in 1'])
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['Engineer Desktop'])
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['Engineer Laptop'])
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['Executive Laptop'])
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['Light Weight Laptop'])
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['Rugged Laptop'])
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['Standard Desktop'])
+        plt.plot(monthly_df['DATE SHIPPED'], monthly_df['Standard Laptop'])
+
+        plt.xticks(rotation=45)
+        plt.legend(loc=2)
+        plt.show()
+
+
+    def br_daily_visual(self):
+
+        daily_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\dailybr.csv', encoding='windows-1252')
+
+        daily_df['DATE SHIPPED'] = pd.to_datetime(daily_df['DATE SHIPPED'], errors='coerce')
+
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['22" Monitor'])
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['24" Monitor'])
+
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['2 in 1'])
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['Engineer Desktop'])
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['Engineer Laptop'])
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['Executive Laptop'])
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['Light Weight Laptop'])
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['Rugged Laptop'])
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['Standard Desktop'])
+        # plt.plot(daily_df['DATE SHIPPED'], daily_df['Standard Laptop'])
+
+        plt.xticks(rotation=45)
+        plt.legend(loc=2)
+        plt.show()
+
+        print(daily_df.dtypes)
+
+
+
+    def inv_projections(self):
+
+        prj_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\inventorymodel.csv', encoding='windows-1252')
+        print(prj_df)
+
+        bau_df = prj_df[['PC Class','Total Inventory','BAU Burn Rate']]
+        ship_df = prj_df[['PC Class','Total Inventory','Total Ship Burn Rate']]
+        hlm_df = prj_df[['PC Class','Total Inventory','HLM Burn Rate']]
+        total_df = prj_df[['PC Class','Total Inventory','Total Burn Rate']]
+
+        today = date.today()
+        bau_df[today] = bau_df['Total Inventory']
+        bau_df[today+timedelta(days=7)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*5))
+        bau_df[today+timedelta(days=14)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*10))
+        bau_df[today+timedelta(days=21)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*15))
+        bau_df[today+timedelta(days=28)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*20))
+        bau_df[today+timedelta(days=35)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*25))
+        bau_df[today+timedelta(days=42)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*30))
+        bau_df[today+timedelta(days=49)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*35))
+        bau_df[today+timedelta(days=56)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*40))
+        bau_df[today+timedelta(days=63)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*45))
+        bau_df[today+timedelta(days=70)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*50))
+        bau_df[today+timedelta(days=77)] = ((bau_df[today]) - (bau_df['BAU Burn Rate']*55))
+
+        # print(bau_df)
+
+        ship_df[today] = ship_df['Total Inventory']
+        ship_df[today+timedelta(days=7)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*5))
+        ship_df[today+timedelta(days=14)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*10))
+        ship_df[today+timedelta(days=21)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*15))
+        ship_df[today+timedelta(days=28)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*20))
+        ship_df[today+timedelta(days=35)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*25))
+        ship_df[today+timedelta(days=42)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*30))
+        ship_df[today+timedelta(days=49)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*35))
+        ship_df[today+timedelta(days=56)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*40))
+        ship_df[today+timedelta(days=63)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*45))
+        ship_df[today+timedelta(days=70)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*50))
+        ship_df[today+timedelta(days=77)] = ((ship_df[today]) - (ship_df['Total Ship Burn Rate']*55))
+
+        # print(ship_df)
+
+        hlm_df[today] = hlm_df['Total Inventory']
+        hlm_df[today+timedelta(days=7)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*5))
+        hlm_df[today+timedelta(days=14)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*10))
+        hlm_df[today+timedelta(days=21)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*15))
+        hlm_df[today+timedelta(days=28)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*20))
+        hlm_df[today+timedelta(days=35)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*25))
+        hlm_df[today+timedelta(days=42)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*30))
+        hlm_df[today+timedelta(days=49)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*35))
+        hlm_df[today+timedelta(days=56)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*40))
+        hlm_df[today+timedelta(days=63)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*45))
+        hlm_df[today+timedelta(days=70)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*50))
+        hlm_df[today+timedelta(days=77)] = ((hlm_df[today]) - (hlm_df['HLM Burn Rate']*55))
+
+        # print(hlm_df)
+
+        total_df[today] = total_df['Total Inventory']
+        total_df[today+timedelta(days=7)] = ((total_df[today]) - (total_df['Total Burn Rate']*5))
+        total_df[today+timedelta(days=14)] = ((total_df[today]) - (total_df['Total Burn Rate']*10))
+        total_df[today+timedelta(days=21)] = ((total_df[today]) - (total_df['Total Burn Rate']*15))
+        total_df[today+timedelta(days=28)] = ((total_df[today]) - (total_df['Total Burn Rate']*20))
+        total_df[today+timedelta(days=35)] = ((total_df[today]) - (total_df['Total Burn Rate']*25))
+        total_df[today+timedelta(days=42)] = ((total_df[today]) - (total_df['Total Burn Rate']*30))
+        total_df[today+timedelta(days=49)] = ((total_df[today]) - (total_df['Total Burn Rate']*35))
+        total_df[today+timedelta(days=56)] = ((total_df[today]) - (total_df['Total Burn Rate']*40))
+        total_df[today+timedelta(days=63)] = ((total_df[today]) - (total_df['Total Burn Rate']*45))
+        total_df[today+timedelta(days=70)] = ((total_df[today]) - (total_df['Total Burn Rate']*50))
+        total_df[today+timedelta(days=77)] = ((total_df[today]) - (total_df['Total Burn Rate']*55))
+
+        # print(total_df)
+
+    def pro_support(self):
+
+        repair_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\DellProSupport.csv', encoding='windows-1252',dtype=str)
+        hercules_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\herculesdata.csv', encoding='windows-1252',dtype=str)
+
+        repair_merge = pd.merge(repair_df, hercules_df, how='left', left_on='Received Asset', right_on='ASSET TAG NUMBER')
+
+        repair_merge = repair_merge[['Received Asset','Receive Date','PC Class']]
+
+        value = [['Engineer Laptop',3452.12],['Standard Laptop',1655.40],['2 in 1',2141.17],['Light Weight Laptop',1782.83],['Standard Desktop',794.74],['Engineer Desktop',3042.13],['Rugged Laptop',3129.05]]
+        value_df = pd.DataFrame(value, columns=['PC Class','Cost'])
+
+        value_merge = pd.merge(repair_merge, value_df, how='left', left_on='PC Class', right_on='PC Class')
+
+        print(value_merge)
+
+        value_merge.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\DellProSupportfinaldata.csv', 
+         encoding='windows-1252', index=False)
+
+    # def receive_data(self, model):
+
+    #     hercules_rec = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesreceivedata.csv', encoding='windows-1252', dtype=str)
+
+    #     model.set_index('PC MODEL', inplace=True)
+    #     model_map = model['PC CLASS'].to_dict()
+
+    #     hercules_rec['PC Class'] = hercules_rec['model'].map(model_map)
+
+    #     hercules_rec.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesreceivedatafinal.csv', encoding='windows-1252', index=False)
+
+    def hercules_merge(self):
+
+        hercules_ship = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\herculesdata.csv', encoding='windows-1252', dtype=str)
+        hercules_rec = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesreceivedata.csv', encoding='windows-1252', dtype=str)
+        salvagedf = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculessalvagedata.csv', encoding='utf-8', dtype=str)
+
+        # print(hercules_ship)
+
+        # hercules_rec.rename(columns={'ASSET TAG NUMBER':'Received Asset Tag'}, inplace=True)
+
+        # reuse_merge = pd.merge(hercules_ship, hercules_rec, how='left', left_on='ASSET TAG NUMBER', right_on='Received Asset Tag')
+        reuse_merge = pd.merge(hercules_ship, hercules_rec, how='left', on='ASSET TAG NUMBER')
+
+        # reuse_merge = reuse_merge[['ASSET TAG NUMBER','DATE SHIPPED','Refurb','Received Asset Tag','DATE RECEIVED', 'PC Class']]
+        reuse_merge = reuse_merge[['ASSET TAG NUMBER','DATE SHIPPED','Refurb','DATE RECEIVED', 'PC Class']]
+
+        # reuse_merge = reuse_merge.dropna(subset=['Received Asset Tag'])
+        reuse_merge = reuse_merge.dropna(subset=['ASSET TAG NUMBER'])
+
+        reuse_merge['DATE SHIPPED'] = pd.to_datetime(reuse_merge['DATE SHIPPED'], errors='coerce')
+        reuse_merge['DATE RECEIVED'] = pd.to_datetime(reuse_merge['DATE RECEIVED'], errors='coerce')
+        reuse_merge = reuse_merge[reuse_merge['DATE SHIPPED'] > reuse_merge['DATE RECEIVED']]
+        reuse_merge = reuse_merge.loc[reuse_merge['Refurb'] == 'Y']
+
+        reuse_merge['Timedelta Days'] = (reuse_merge['DATE SHIPPED'] - reuse_merge['DATE RECEIVED']).dt.days
+
+        value = [['Engineer Laptop',3452.12],['Standard Laptop',1655.40],['2 in 1',2141.17],['Light Weight Laptop',1782.83],['Standard Desktop',794.74],['Engineer Desktop',3042.13],['Rugged Laptop',3129.05]]
+        value_df = pd.DataFrame(value, columns=['PC Class','Cost'])
+
+        cost_merge = pd.merge(reuse_merge, value_df, how='left', left_on='PC Class', right_on='PC Class')
+
+        salvage_merge = pd.merge(hercules_ship, salvagedf, how='left', left_on='ASSET TAG NUMBER', right_on='MES')
+
+        salvage_merge = salvage_merge[['ASSET TAG NUMBER','MES','SERIAL NUMBER','DATE SHIPPED','MAKE','MODEL','TICKET NUMBER','HLM',
+        'Depot','Bundle','New User','Current User','Refurb','PC Class','Cost_x','ReceivedDate']]
+
+        salvage_merge1 = salvage_merge.loc[salvage_merge['ASSET TAG NUMBER'].notnull()]
+        salvage_merge2 = salvage_merge1.loc[salvage_merge1['MES'].notnull()]
+        salvage_merge3 = salvage_merge2.loc[salvage_merge2['Refurb'] == 'Y']
+
+        print(salvage_merge3)
+
+        # cost_merge.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\refurbdata.csv', 
+        # encoding='windows-1252', index=False)
+
+        # os.startfile(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\refurbdata.csv', 'open')
+
+    def hercules_sheets(self):
+
+        hercules_rec = pd.read_excel(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesdata.xlsx', sheet_name='Receiving')
+        hercules_ship = pd.read_excel(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesdata.xlsx', sheet_name='Shipping')
+        hercules_salv = pd.read_excel(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesdata.xlsx', sheet_name='Salvage')
+
+        hercules_rec.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\hercules data\\herculesreceivedata.csv', encoding='windows-1252', index=False)
+        hercules_ship.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\hercules data\\herculesshipdata.csv', encoding='windows-1252', index=False)
+        hercules_salv.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\hercules data\\herculessalvagedata.csv', encoding='utf-8', index=False)
+
+
+data = Data()
+# data.absolute_merge(hdd_df, absolute_df)
+# data.cmdb_asset()
+# data.peoplesoft_merge(ppl_df, txdotnow_df)
+# data.asset_merge()
+# data.run_vba()
+# data.usage_breakdown()
+# data.ship_data(ship_df)
+# data.inventory_calculations(inv_df)
+# data.br_historical()
+# data.br_monthly_visual()
+# data.br_daily_visual()
+# data.inv_projections()
+# data.pro_support()
+data.hercules_merge()
+# data.hercules_sheets()
