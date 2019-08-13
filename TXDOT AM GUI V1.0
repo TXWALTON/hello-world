@@ -1,0 +1,1283 @@
+### Refreshing the data requires downloading the data from absolute (standard report, hard drives), CMDB (in use, in transit, in maintenance, in stock), and hercules ###
+
+import pandas as pd
+import numpy as np
+import csv
+import tkinter as tk
+import matplotlib.pyplot as plt
+from matplotlib.dates import (YEARLY, MONTHLY, DateFormatter, rrulewrapper, RRuleLocator, drange)
+from tkinter import ttk
+from tkinter import filedialog
+from tkinter import *
+from tkinter.ttk import *
+import os, sys, inspect
+import os.path
+import datetime
+import webbrowser as wb
+import smtplib
+import datetime as dt
+from datetime import datetime, timedelta, date
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from selenium import webdriver
+from dateutil.relativedelta import relativedelta
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import SessionNotCreatedException
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.options import Options
+import time
+import requests
+import urllib3
+import shutil
+import glob
+import re
+import unittest
+from itertools import chain
+
+pd.options.display.max_columns = None
+
+class_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\pcclass.csv', encoding='windows-1252', dtype=str)
+return_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\pendingreturns.csv')
+absolute_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\absolutereport.csv',  thousands=',', encoding='windows-1252', dtype=str)
+txdotnow_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\CMDBreport.csv', thousands=',', encoding='windows-1252', dtype=str)
+ship_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesshipdata.csv', encoding='windows-1252', dtype=str)
+hdd_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\absoluteharddrivereport.csv', encoding= 'windows-1252', dtype=str)
+repairdf = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\DellProSupport.csv', encoding='windows-1252', dtype=str)
+inv_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\depotinventory.csv', encoding='windows-1252', dtype=str)
+ppl_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\peoplesoftactivedirectory.csv', encoding='windows-1252', dtype=str)
+# merged = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORT040919.csv', thousands=',', encoding='windows-1252', dtype=str)
+
+eng_dt = ['Precision Tower 5810','Workstation z800','Hewlett-Packard HP Z800 Workstation','Compaq 8200 Elite','HP Compaq 8200 Elite CMT PC',
+			'Workstation xw8200','Hewlett-Packard hp workstation xw8200','Precision T5600','Dell Precision T5610','Dell Inc. Precision T5600','Precision T5610',
+			'Precision T5810','Dell Inc. Precision Tower 5810','Precision Tower 7910','Dell Inc. Precision Tower 7910','Dell Inc. Precision T5610','Workstation xw8400',
+			'Hewlett-Packard HP xw8400 Workstation','Workstation xw8600','Hewlett-Packard HP xw8600 Workstation','Hewlett-Packard HP Compaq 6730s','Workstation z600',
+			'Hewlett-Packard HP Z600 Workstation','Workstation z400','Hewlett-Packard HP Z400','Hewlett-Packard HP Z400 Workstation','Z400 Xeon','Hewlett-Packard HP EliteBook 8740w',
+			'Panasonic Corporation CF-52PGNBX1M','Hewlett-Packard HP ProBook 4520s','Panasonic Corporation CF-53AAGZX1M','Dell Inc. Precision Tower 7810','Dell Inc. Precision T1700',
+			'Dell Precision T5600','Hewlett-Packard HP EliteBook 8560w','Hewlett-Packard XL508AV','Workstation xw4600','Hewlett-Packard HP xw4600 Workstation','Dell Inc. Precision 5820 Tower',
+			'Dell Inc. Precision 7920 Tower','DeLL PRECISION T5810','T7920','T5810','DeLL PRECISION T5810ll Precision T7910','Dell Precision T7910','DeLL PRECISION T5810ll Precision T7910',
+			'Dell Precision 5810','DELL PRECISION T5810','DELL PRECISION TOWER 5810','5810','7920','Dell Precision T5810','T7910','Precision 5820 Tower']
+
+eng_lt = ['Precision M6500','Dell Inc. Precision M6500','Dell Inc. Precision M6600','Precision M4700','Dell Inc. Precision M4700','Precision M4800',
+			'Dell Precision M4800','Dell Inc. Precision M4800','Dell Precision M4700','Precision 7510','Dell Inc. Precision 7510','Dell Inc. Precision 7520','Dell Inc. Precision 7530',
+			'DELL PRECISION 7510','DELL PRECISION 7520','M7520','M7510','Dell Precision 7510','DeLL PRECISION 7510ll Precision T7910','Dell Precision 7510 Laptop',
+			'Dell Precision 7520 Laptop','Precision 7520','7510','7520','7530','dell precision 7510','DELL PRECISION7520','DELL PRECISION 7510','DeLL PRECISION 7510ll Precision T7910',
+			'E7510','E7520','E7530','M4800','M7530','Precision 7530','DELL PRECISION 7510','DeLL PRECISION 7510ll Precision T7910','Dell Inc. Precision M7510',
+			'Dell Inc. Precision M7520','Dell Inc. Precision M7530','Dell Inc. Precision T7510','DELL PRECISON 7510','DeLL PRECISON 7510ll Precision T7910']
+
+exec_lt = ['XPS L421X','Dell Inc. XPS L421X','XPS L321X','Dell Inc. Dell System XPS L321X','XPS 8300','XPS13 9333','Dell Inc. XPS 13 9343','Dell Inc. XPS13 9333',
+			'XPS 13 9350','Dell XPS 13 L321X','Dell Inspiron 5759','EliteBook 8540p','EliteBook 2530P','HP Mini 5103','Hewlett-Packard HP Mini 5103','EliteBook 8740w',
+			'ProBook 4530','XPS 13','Dell XPS 13 9333','XPS14','XPS13 (2015)','XPS13 (2016)','Latitude 7275','Microsoft Surface Pro 4','Surface Pro 3','Dell Inc. XPS 13 9350'
+			'Dell Inc. XPS 13 9365','XPS']
+
+lw_lt = ['Latitude E7440','Dell Inc. Latitude E7440','7450','7470','Hewlett Packard Compaq TC4400 Tablet PC',
+			'Latitude 6430U','Dell Latitude 6430u','Dell Latitude E7440','Latitude E7450','ProBook 4520s','ProBook 4720','ProBook 4720s','ProBook 4520','EliteBook 8560w',
+			'Hewlett-Packard HP EliteBook 8560p','ProBook 6560b','Hewlett-Packard HP ProBook 6560b','ProBook 6730B','ProBook 4530s','Hewlett-Packard HP ProBook 4530s',
+			'ProBook 4730','ProBook 4730s','HP ProBook 4730s','Hewlett Packard EliteBook 2740p','Hewlett Packard EliteBook 2730p Notebook PC','Compaq Elite 8300',
+			'Hewlett-Packard HP Compaq Elite 8300 SFF','Hewlett-Packard HP Compaq Elite 8300 CMT','ThinkPad T520','ThinkPad X220','Compaq nc8230','Hewlett-Packard HP Compaq nc8230'
+			'Dell Inc. Latitude 6430U','Dell Inc. Latitude E7450','Dell Inc. Latitude E7470','Latitude E7470','Hewlett-Packard HP ProBook 4720s',
+			'Hewlett-Packard HP ProBook 4730s','Lenovo 42962W5','Lenovo 424049U','Lenovo 428757U','Dell Inc. Latitude 7480','Dell Inc. Latitude 7490', 'DELL LATITUDE 7480',
+			'E7480','E7470','Latitude 7480','Dell Precision e7470 Laptop','DELL LATITUDE 7470','DeLL LATITUDE E7470ll Precision T7910','7470','7480','7490',
+			'Dell Inc. Latitude E7480','Dell Latitude 7480','Dell Latitude E7470','DeLL LATITUDE E7470l','Dell Precision E7470 Laptop','E6420','E7450','e7470','E74870',
+			'E7490','Latitude 7490','DeLL LATITUDE E7470','Dell Inc. Latitude E7490','dell Inc. Latitude E7470']
+
+two_in_one = ['Dell Inc. Latitude 5285','Dell Inc. Latitude 5289','Dell Inc. Latitude 7390 2-in-1', 'Dell Latitude 5289','Dell Latitude 5285','DELL LATITUDE 5285',
+			'E5285','5285','5289','Dell - Latitude 7390','Dell Latitude 5285 Tablet','Latitude 5285','TITUDE 5285','5825','Dell Inc. Latitude E5285']
+
+std_dt = ['OptiPlex 7010','OptiPlex 9020','OptiPlex 7020','OptiPlex GX620','Dell Inc. OptiPlex 620',
+			'OptiPlex 745','Dell Inc. OptiPlex 745','Dell OptiPlex 745','Dell Inc. OptiPlex 320','Compaq Evo D510 CMT','Dell Inc. Latitude D520','Dell Inc. Latitude D810',
+			'Dell Inc. Latitude D820','Dell Inc. Latitude D620','Dell Inc. Latitude D630','Hewlett Packard Compaq Evo D500','Hewlett-Packard xw4400','Latitude D830',
+			'Dell Latitude D830','Dell Inc. Latitude D830','Gateway GT5464','OptiPlex 620','OptiPlex 780','Dell Optiplex 7010','Dell Optiplex 7020','Dell Optiplex 5040',
+			'Dell Inc. OptiPlex GX620','Dell Inc. OptiPlex 7010','Dell Inc. OptiPlex 7020','Dell Inc. OptiPlex 5040','Dell Inc. OptiPlex 5050','ified - Dell Inc. OptiPlex 7010',
+			'DELL OPTIPLEX 5050 SFF','DELL OPTIPLEX 5050','OptiPlex 5050','5040','5050','7010','7020','DELL LATITUDE E5040','Dell Optiplex 5040 Desktop','DeLL OPTIPLEX 5040 SFFll Precision T7910',
+			'Dell Optiplex 5050 Desktop','E5040','OptiPlex 5040','Dell Inc. OptiPlex 5060','Optiplex  5060','OptiPlex 5060']
+
+std_lt = ['Latitude E5520','Dell Inc. Latitude E5520','Latitude E5540','Latitude E5530 vPro','Dell Inc. Latitude E5530','Latitude E5530','Latitude E5530 non-vPro',
+			'Compaq dc7800','Latitude E5550','Latitude E5510','Dell Latitude E5510','Dell Inc. Latitude E5510','Dell Latitude E5520','Latitude E5500','Dell Latitude E5500',
+			'Dell Inc. Latitude E5500','Compaq dc7900','Hewlett-Packard HP Compaq dc7900 Small Form Factor','Compaq nc8430','Compaq 8510p','Hewlett-Packard HP Compaq 8510p',
+			'Compaq 6530b','Hewlett-Packard HP Compaq 6530b','Hewlett-Packard Compaq 6530b Notebook PC','Compaq 6730s','Hewlett-Packard EliteBook 8530P','Hewlett-Packard EliteBook 8540w',
+			'Hewlett-Packard Folio 13 Notebook','HP d530 CMT(DC577AV)','Compaq dc7100','Hewlett-Packard HP Compaq dc7100 CMT(DX438AV)','Compaq 8100 Elite','Hewlett Packard Compaq 8100 Elite',
+			'HP Compaq 8100 Elite CMT PC','Latitude 5530','Latitude 5540','Latitude 5550','Latitude 5570','1619____','Hewlett-Packard 1619____','Compaq d530','Hewlett-Packard HP d530',
+			'Compaq Evo D510','Compaq Evo D530','Dell Inc. Latitude E5530 vPro','Dell Latitude E5540','Dell Latitude E5530','Dell Inc. Latitude E5530 non-vPro','Dell Inc. Latitude E5540',
+			'Dell Inc. Latitude E5550','Dell Inc. Latitude E5570','Dell Inc. Latitude E6400','Latitude E5570','Hewlett-Packard HP Compaq 8100 Elite CMT PC','Hewlett-Packard HP Compaq 8100 Elite SFF PC',
+			'Hewlett-Packard HP Compaq 8200 Elite Convertible Mini','Hewlett-Packard HP Compaq 8200 Elite CMT PC','Hewlett Packard Compaq 8200 Elite','Hewlett-Packard HP Compaq 8200 Elite SFF PC',
+			'Hewlett-Packard HP COMPAQ 8200','Hewlett-Packard HP Compaq dc7900 Convertible Minitower','Hewlett-Packard HP Compaq dc7800 Convertible Minitower','Hewlett-Packard HP Compaq dc7800 Convertible Minitow',
+			'Hewlett-Packard HP Compaq dc7800 CMT','Latitude E6430','Dell Latitude E6430','Dell Inc. Latitude E6430','Dell Inc. Latitude E6520','Dell Inc. Latitude E6500',
+			'Dell Inc. CBX3','DELL__ CBX3___','Lenovo ThinkPad T520','Lenovo ThinkPad T500','Lenovo ThinkPad G41','Dell Inc. Latitude 5580','Hewlett-Packard Compaq 8100 Elite',
+			'Dell Inc. Precision 3530','Dell Inc. Latitude 5590','Inc. Latitude 5580','Dell E5580 Laptop','DELL LATITUDE 5580','DELL LATITUDE E5570','E5580','dell latitude 5580',
+			'DeLL LATITUDE E5570ll Precision T7910','Dell Latitude E5570','Dell Latitude E5570 Laptop','E5570','Dell Latitude 5580','DELL LATITUDE E5550','DELL LATITUDE E5540',
+			'DELL LATITUDE E7450','Dell Latitude 7480 Laptop','5550','5570','5580','5590','Dell E5580 Laptop','5540','Dell Inc. Latitude E5580','DeLL LATITUDE 5580 ll Precision T7910',
+			'DeLL LATITUDE E5570','E5540','E5550','e5580','E5590','Latitude 5580','Latitude 5590','LATITUDE E5570','DELL LATITUDE E5570','Dell Inc. Latitude E5590','E55580']
+
+rugged = ['Latitude E6530','Dell Inc. Latitude E6530','Dell Latitude E6530','Latitude E6420',
+			'Dell Inc. Latitude E7204','Dell Inc. Latitude 7424 Rugged Extreme','Latitude 14 Rugged Extreme','Latitude 14 Rugged Extreme (7404)','Dell Latitude 7404 Rugged',
+			'Panasonic Toughbook 53','Panasonic Corporation CF','Panasonic Corporation CF-53EJAZX1M','Panasonic Toughbook C1','Panasonic Toughbook 19','Panasonic Toughbook CF-52',
+			'Toughbook 52','Toughbook 53','Toughbook 30','Dell 6430 XFR','Dell Latitude 7402','Dell Latitude 7404','JTJQNY1','Dell Inc. Latitude 7212 Rugged Extreme Tablet',
+			'Dell Inc. Latitude 7414','Dell Inc. Latitude 14 Rugged Extreme (7404)','Dell Inc. Latitude E6420','6420U','Dell Latitude E6420 XFR','DELL LATITUDE RUGGED 7414',
+			'dell latitude rugged 7414','Dell 14 RUGGED EXTREME 7414 Laptop','DELL LATITUDE RUGGED 7404','Latitude 7404','Latitude Rugged 7414','E7414','Latitude Rugged E7414',
+			'7404','Dell 14 RUGGED EXTREME 7414','Dell Inc. Latitude 14 Rugged Extreme (7404)','DELL LATITUDE 7404','Dell Latitude 7404 Laptop','DELL LATITUDE 7404 RUGGED',
+			'DELL LATITUDE RUGGED 7212','DeLL LATITUDE RUGGED 7414ll Precision T7910','DELL LATTITUDE 14 RUGGED EXTREME 7404 RUGGED LAPTOP','E7404','Latitude 7414','Latitude 7424 Rugged Extreme',
+			'Rugged Latitude 7414','DELL Latitude 7404','Rugged 7414']
+
+tt_monitor = ['22 In Monitor','P2217','P2217H']
+tf_monitor = ['24 In Monitor','P2417H']
+ram = ['8GB of RAM','2x8GB RAM DDR4','8GB RAM DDR4 for 5570']
+battery = ['Battery']
+disk_drive = ['CD/DVD Drive','DVD Drive','External CD/DVD Drive','External DVD Drive']
+display_cable = ['Display Cable']
+eng_dock = ['Engineering Dock','Eng Dock']
+rugged_dock = ['Rugged Dock']
+standard_dock = ['Standard Dock', 'WD15 USB C Dock','WD15','Dock Standard','WD15 Dock','WD15 USB C Dock X 5']
+keyboard = ['Keyboard']
+mouse = ['Mouse']
+lock = ['Lock','Laptop Lock']
+power = ['Power Supply','180 W Power Supply','M4800 Power supply']
+
+pd.options.display.max_columns = None
+
+
+LARGE_FONT= ("Verdana", 12)
+
+
+class P2P_Gui(tk.Tk):
+
+	def __init__(self, *args, **kwargs):
+		
+		tk.Tk.__init__(self, *args, **kwargs)
+		
+		tk.Tk.wm_title(self, 'Thoth v0.1')
+		
+		container = tk.Frame(self)
+		container.pack(side="top", fill="both", expand = True)
+
+		container.grid_rowconfigure(0, weight=1)
+		container.grid_columnconfigure(0, weight=1)
+
+		self.frames = {}
+		
+		for F in (HomePage, HardwarePage, SWSearchPage, SWAllPage, PublisherPage, AssetPage, PhonePage, InventoryPage):
+
+			frame = F(container, self)
+
+			self.frames[F] = frame
+
+			frame.grid(row=0, column=0, sticky="nsew")
+
+		self.show_frame(HomePage)
+
+	def show_frame(self, cont):
+
+		frame = self.frames[cont]
+		frame.tkraise()
+
+
+class MessageBoxes():
+		
+	def close_message(self):
+
+		self.close_popup = tk.Tk()
+		self.close_popup.wm_title('!')
+
+		label = ttk.Label(self.close_popup, text='Are you sure you want to quit?')
+		label.pack(side='top', fill='x', pady=10)
+
+		yes_button = ttk.Button(self.close_popup, text='Yes', command = self.close_program)
+		yes_button.pack(side='left')
+
+		no_button = ttk.Button(self.close_popup, text='No', command = self.close_allmessage)
+		no_button.pack(side='right')
+		
+		self.close_popup.mainloop()
+
+	def ok_message(self):
+
+		self.ok_popup = tk.Tk()
+		self.ok_popup.wm_title('!')
+
+		label = ttk.Label(self.ok_popup, text='Zero results found.')
+		label.pack(side='top', fill='x', pady=10)
+
+		ok_button = ttk.Button(self.ok_popup, text='Ok', command = self.close_allmessage)
+		ok_button.pack()
+
+		self.ok_popup.mainloop()
+		
+	def close_allmessage(self):
+		
+		self.close_popup.destroy()
+		self.ok_popup.destroy()
+		
+	def close_program(self):
+
+		app.destroy()
+		self.close_allmessage()
+
+
+class HomePage(tk.Frame, MessageBoxes):
+
+	def __init__(self, parent, controller):
+		
+		tk.Frame.__init__(self,parent)
+		label = ttk.Label(self, text='Thoth v0.1', font=LARGE_FONT)
+		label.pack(pady=10,padx=10)
+		self.controller = controller
+		
+		cmdb_button = ttk.Button(self, text='CMDB', command= lambda: controller.show_frame(HardwarePage))
+		cmdb_button.pack()
+
+		sw_button = ttk.Button(self, text='Software', command= lambda: controller.show_frame(SWSearchPage))
+		sw_button.pack()
+		
+		phone_button = ttk.Button(self, text='Telecom', command= lambda: controller.show_frame(PhonePage))
+		phone_button.pack()
+		
+		inventory_button = ttk.Button(self, text='Inventory', command= lambda: controller.show_frame(InventoryPage))
+		inventory_button.pack()
+		
+		quit_button = ttk.Button(self, text='Exit', command= self.close_message)
+		quit_button.pack()
+
+
+class HardwarePage(tk.Frame, MessageBoxes):
+
+	def __init__(self, parent, controller):
+
+		tk.Frame.__init__(self,parent)
+		label = ttk.Label(self, text='Thoth v0.1', font=LARGE_FONT)
+		label.pack(pady=10,padx=10)
+		self.controller = controller
+
+		scrub_button = ttk.Button(self, text='      Refresh Data      ', command=self.cmdb_auto)
+		scrub_button.pack()
+
+		breakdown_button = ttk.Button(self, text='    PC Class Chart     ', command=self.class_graph)
+		breakdown_button.pack()
+
+		usage_button = ttk.Button(self, text='      Usage Graph      ', command=self.usage_graph)
+		usage_button.pack()
+
+		nologin_button = ttk.Button(self, text='     No Login List      ', command=self.no_login)
+		nologin_button.pack()
+
+		hwreturn_button = ttk.Button(self, text='Pending Return List')
+		hwreturn_button.pack()
+
+		return_request_button = ttk.Button(self, text='        Email Users       ', command=self.asset_email)
+		return_request_button.pack()
+
+		home_button = ttk.Button(self, text='             Back             ', command=lambda: controller.show_frame(HomePage))
+		home_button.pack()
+
+		quit_button = ttk.Button(self, text='               Exit              ', command= self.close_message)
+		quit_button.pack()
+
+	def cmdb_auto(self):
+
+		self.absolute_merge()
+		self.cmdb_asset()
+		self.asset_merge(class_df)
+
+	def absolute_merge(self):
+
+		absolute_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\absolutereport.csv',  thousands=',', encoding='windows-1252', dtype=str)
+		hdd_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\absoluteharddrivereport.csv', encoding= 'windows-1252', dtype=str)
+
+		hdd_df = hdd_df.loc[hdd_df['Volume Label'] == '(system drive)']
+
+		hdd_df = hdd_df[['Device Name', 'Hard Disk Free Space (MB)']]
+		hdd_df['Hard Disk Free Space (MB)'] = pd.to_numeric(hdd_df['Hard Disk Free Space (MB)'], errors='coerce').fillna(0)
+		hdd_df['Hard Disk Free Space (MB)'].astype(np.int64)
+		hdd_df.rename(columns={'Hard Disk Free Space (MB)':'Hard Disk Free Space (GB)'}, inplace=True)
+
+		hdd_df['Hard Disk Free Space (GB)'] = hdd_df['Hard Disk Free Space (GB)'].apply(lambda x: x/1000)
+
+		self.absolute_merge = pd.merge(absolute_df, hdd_df, on='Device Name')
+
+	def cmdb_asset(self):
+
+		file = r'C:\Users\TWALTON\Desktop\python hw data\alm hardware'
+		cmdb_csv = glob.glob(file +'/*.csv')
+		frame = pd.DataFrame
+		list = []
+
+		for f in cmdb_csv:
+			df = pd.read_csv(f, index_col=None, header=0, encoding= 'windows-1252', low_memory=False)
+			df = df[['ci','serial_number', 'asset_tag', 'model', 'assigned_to','assigned_to.user_name', 'assigned_to.email', 'assigned_to.department', 
+			'assigned_to.location', 'assigned_to.location.street', 'assigned_to.location.city','assigned_to.manager','assigned_to.manager.email',
+			'warranty_expiration', 'retirement_date', 'install_status']]
+
+			df.rename(columns={'serial_number':'Serial Number'}, inplace=True)
+			list.append(df)
+		self.cmdb_merge = pd.concat(list, sort=False)
+
+		self.cmdb_merge.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\CMDBreport.csv')
+
+		camp_inv = self.cmdb_merge.loc[self.cmdb_merge['install_status'] == 'In stock']
+		camp_inv.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\depotinventory.csv', encoding='windows-1252', index=False)
+
+	def asset_merge(self, model):
+
+		# txdotnow.rename(columns={'Serial number': 'Serial Number'}, inplace=True)
+
+		self.asset_df = pd.merge(self.cmdb_merge, self.absolute_merge, how='left', left_on='Serial Number', right_on='Serial Number')
+
+		# asset_df['Last Logon'] = pd.to_datetime(asset_df['Last Logon'].astype(str), format= '%d%m%Y',errors='coerce')
+		# asset_df['Warranty expiration'] = pd.to_datetime(asset_df['warranty_expiration'].astype(str), format= '%d%m%Y', errors='coerce')
+		# asset_df['Scheduled retirement'] = pd.to_datetime(asset_df['asset.retirement_date'].astype(str), format= '%d%m%Y', errors='coerce')
+
+		model.set_index('PC MODEL', inplace=True)
+		model_map = model['PC CLASS'].to_dict()
+
+		self.asset_df['PC Class'] = self.asset_df['model'].map(model_map)
+
+		self.asset_df['Average Daily Usage (HH:MM)'] = self.asset_df['Average Daily Usage (HH:MM)'].str.replace(',', '')
+		self.asset_df['Average Daily Usage (HH:MM)'] = pd.to_datetime(self.asset_df['Average Daily Usage (HH:MM)'], unit='m').dt.strftime('%H:%M')
+
+		self.asset_df['assigned_to.user_name'] = self.asset_df['assigned_to.user_name'].astype(str)
+
+		# self.asset_df['display_name'] = self.asset_df['display_name'].str[9:]
+		self.asset_df['Total Physical Memory (bytes)'] = self.asset_df['Total Physical Memory (bytes)'].str.extract('(\d+)', expand=False)
+
+		self.asset_df['Total Physical Memory (bytes)'] = pd.to_numeric(self.asset_df['Total Physical Memory (bytes)'], errors='coerce')
+		self.asset_df['Hard Disk Free Space (GB)'] = pd.to_numeric(self.asset_df['Hard Disk Free Space (GB)'], errors='coerce')
+
+		self.asset_df['warranty_expiration'] = pd.to_datetime(self.asset_df['warranty_expiration'], errors='coerce')
+		self.asset_df['warranty_expiration'] = self.asset_df['warranty_expiration'] + pd.offsets.DateOffset(years=1)
+
+		self.final_df = self.asset_df[['Last Connected (UTC)', 'Average Daily Usage (HH:MM)', 'Usage Level', 
+		'Serial Number', 'OS > Name','ci', 'asset_tag', 'assigned_to', 'PC Class','model','assigned_to.department', 
+		'assigned_to.user_name', 'assigned_to.email','assigned_to.manager','assigned_to.manager.email','assigned_to.location', 
+		'assigned_to.location.street', 'assigned_to.location.city','warranty_expiration', 'retirement_date', 'install_status',
+		'Total Physical Memory (bytes)', 'Hard Disk Free Space (GB)']]
+
+		self.final_df.to_excel(r'C:\Users\TWALTON\Desktop\HWASSETREPORT.xlsx', 
+								 encoding='windows-1252', index=False)
+
+		self.final_df.to_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', 
+								 encoding='windows-1252', index=False)
+
+		os.startfile(r'C:\Users\TWALTON\Desktop\HWASSETREPORT.xlsx', 'open')
+
+	def class_graph(self):
+
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', encoding='windows-1252')
+		df = df.groupby(['model','PC Class'], as_index=False).count()
+		df = df[['model','Serial Number','PC Class']]
+		df = df.pivot(index='model',columns='PC Class',values='Serial Number')
+		df = df.rename_axis(None, axis=1).reset_index()
+		# df.set_index('model')
+		# df.fillna(0.0, inplace=True)
+		print(df)
+
+		tab_df = df[['model','2 in 1']].dropna()
+		engdt_df = df[['model','Engineer Desktop']].dropna()
+		englt_df = df[['model','Engineer Laptop']].dropna()
+		exec_df = df[['model','Executive Laptop']].dropna()
+		lwlt_df = df[['model','Light Weight Laptop']].dropna()
+		rugglt_df = df[['model','Rugged Laptop']].dropna()
+		ruggtab_df = df[['model','Rugged Tablet']].dropna()
+		stddt_df = df[['model','Standard Desktop']].dropna()
+		stdlt_df = df[['model','Standard Laptop']].dropna()
+
+
+		fig, axs = plt.subplots(3,3)
+
+		axs[0,0].pie(tab_df['2 in 1'], autopct='%1.1f%%', shadow=True, radius=2, textprops={'size':'smaller'})
+		axs[0,0].legend(labels=tab_df['model'], loc='upper left', fontsize='xx-small')
+
+		axs[1,0].pie(engdt_df['Engineer Desktop'], labels=engdt_df['model'], autopct='%.0f%%',shadow=True)
+
+		axs[2,0].pie(englt_df['Engineer Laptop'], labels=englt_df['model'], autopct='%.0f%%',shadow=True)
+
+		axs[0,1].pie(exec_df['Executive Laptop'], labels=exec_df['model'], autopct='%.0f%%',shadow=True)
+
+		axs[1,1].pie(lwlt_df['Light Weight Laptop'], labels=lwlt_df['model'], autopct='%.0f%%',shadow=True)
+
+		axs[2,1].pie(rugglt_df['Rugged Laptop'], labels=rugglt_df['model'], autopct='%.0f%%',shadow=True)
+
+		axs[0,2].pie(ruggtab_df['Rugged Tablet'], labels=ruggtab_df['model'], autopct='%.0f%%',shadow=True)
+
+		axs[1,2].pie(stddt_df['Standard Desktop'], labels=stddt_df['model'], autopct='%.0f%%',shadow=True)
+
+		axs[2,2].pie(stdlt_df['Standard Laptop'], labels=stdlt_df['model'], autopct='%.0f%%',shadow=True)
+
+		plt.show()
+
+	def usage_graph(self):
+
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', encoding='windows-1252')
+
+		df = df.groupby(['Usage Level', 'PC Class'], as_index=False).count()
+		df = df[['Usage Level','Serial Number', 'PC Class']]
+		df = df.pivot(index='PC Class', columns='Usage Level', values='Serial Number')
+		df = df.rename_axis(None, axis=1).reset_index()
+
+		pos = list(range(len(df['Heavily Used'])))
+		width = 0.2
+
+		fig, ax = plt.subplots(figsize=(15,10))
+
+		plt.bar(pos, df['Heavily Used'], width, alpha=0.5, color='#EE3224', label=df['PC Class'][0])
+		plt.bar([p + width for p in pos], df['Lightly Used'], width, alpha=0.5, color='#F78F1E', label=df['PC Class'][1])
+		plt.bar([p + width*2 for p in pos], df['Moderately Used'], width, alpha=0.5, color='#FFC222', label=df['PC Class'][2])
+		plt.bar([p + width*3 for p in pos], df['Not Used'], width, alpha=0.5, color='#CE8E00', label=df['PC Class'][3])
+
+		ax.set_title('PC Class Usage Level')
+		ax.set_xticks([p + 1.5 * width for p in pos])
+		ax.set_xticklabels(df['PC Class'])
+
+		plt.xlim(min(pos) - width, max(pos) + width*4)
+		plt.ylim([0, max(df['Moderately Used'] + 250)])
+
+		plt.legend(['Heavily Used', 'Lightly Used', 'Moderately Used', 'Not Used'], loc='upper left')
+		plt.grid()
+
+		plt.show()
+
+	def no_login(self):
+
+		return_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\pendingreturns.csv')
+		bsc_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\call accounting\bsclist.csv')
+
+		login_df = self.final_df[(self.final_df['install_status'] == 'In use')]
+		login_df = login_df[(login_df['assigned_to'] != '')]
+		login_df['Last Connected (UTC)'] = pd.to_datetime(login_df['Last Connected (UTC)'], errors='coerce')
+		mask = login_df['Last Connected (UTC)'] <= (pd.to_datetime('today') - datetime.timedelta(days=90))
+		login_df1 = login_df[mask]
+
+		return_df['short_description'] = return_df['short_description'].str[-6:]
+		return_df.rename(columns={'short_description':'pending asset'}, inplace=True)
+
+		login_df2 = pd.merge(login_df1, return_df, how='left', left_on='asset_tag', right_on='pending asset')
+		login_df3 = pd.merge(login_df2, bsc_df, how='left',left_on='assigned_to.department', right_on='DEPARTMENT')
+
+		login_df3 = login_df3[['Last Connected (UTC)','Serial Number','ci','asset_tag','assigned_to','assigned_to.email',
+		'PC Class','model','assigned_to.department','assigned_to.manager','assigned_to.manager.email','number',
+		'install_status','opened_at','pending asset','requested_for','requested_for.manager','BSC NAME','BSC EMAIL','BSC NAME2','BSC EMAIL2']]
+
+		login_df3.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\nologin.csv', encoding='windows-1252', index=False)
+
+		os.startfile(r'C:\Users\TWALTON\Desktop\python hw data\nologin.csv', 'open')
+
+	def asset_email(self):
+
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\nologin.csv', encoding='windows-1252', dtype=str)
+		print(df)
+
+		username = 'timothy.walton@txdot.gov'
+		password = 'Cowboy_30'
+
+		row = 0
+		for address in df['assigned_to.email']:
+
+			asset = df.loc[row, 'asset_tag']
+			name = df.loc[row, 'assigned_to']
+			bsc1 = df.loc[row, 'BSC EMAIL']
+			bsc2 = df.loc[row, 'BSC EMAIL2']
+			manager = df.loc[row, 'assigned_to.manager.email']
+			send_list = [address] + [bsc1] + [bsc2]
+			title = 'IMD Request: Please Return Asset#: {}'.format(asset)
+			login = df.loc[row, 'Last Connected (UTC)']
+			ci = df.loc[row, 'ci']
+			# print(send_list)
+
+			msg = MIMEMultipart()
+			msg['From'] = username
+			msg['To'] = ", ".join(send_list)
+			msg['Subject'] = title
+
+			message = '''Hello, \n
+			Our records show that Asset#: {} has not been logged into for the past 90 days.\n
+			Would you please determine if this asset is in your possession and is no longer needed?\n
+			If this is the case please send the device back to Camp Hubbard Building 6 so that we can either salvage or repurpose the asset.\n
+			This initiative will help save TXDOT funds by allowing IMD to reutilize assets that still have months left on their Dell Warranty.\n
+			If the asset information below is not correct, please let us know so we can redirect this message to the correct user.\n
+			Your help is greatly appreciated in this attempt to clean up our IT environment, the asset database and continue to be responsible with TXDOT's assets.\n
+
+			Assigned To: {} \n
+			Asset#: {} \n
+			C.I.#: {} \n
+			Last Login: {} \n'''.format(asset,name,asset,ci,login)
+			# User ID: {} \n'''.format(name)
+
+			msg.attach(MIMEText(message))
+
+			# for path in files:
+			# 	part = MIMEBase('application', 'octet-stream')
+			# 	with open(path, 'rb') as file:
+			# 		part.set_payload(file.read())
+			# 	encoders.encode_base64(part)
+			# 	part.add_header('Content-Disposition', 'attachment; filename="{}"'.format(op.basename(path)))
+			# 	msg.attach(part)
+
+			# print("You passed the test...")
+
+			mailServer = smtplib.SMTP('smtp-mail.outlook.com', 587)
+			mailServer.ehlo()
+			mailServer.starttls()
+			mailServer.ehlo()
+			mailServer.login(username, password)
+			mailServer.sendmail(username, address, msg.as_string())
+			mailServer.close()
+			row+=1
+
+
+class SWSearchPage(tk.Frame, MessageBoxes):
+
+	def __init__(self, parent, controller):
+
+		tk.Frame.__init__(self,parent)
+		label = ttk.Label(self, text="Select Search Option", font=LARGE_FONT)
+		label.pack(pady=10,padx=10)
+		self.controller = controller
+
+		refresh_button = ttk.Button(self, text='Refresh', command=self.sw_refresh)
+		refresh_button.pack()
+
+		all_button = ttk.Button(self, text='Program Name', command= lambda: controller.show_frame(SWAllPage))
+		all_button.pack()
+
+		publisher_button = ttk.Button(self, text='Publisher', command= lambda: controller.show_frame(PublisherPage))
+		publisher_button.pack()
+
+		asset_button = ttk.Button(self, text='Asset Number', command= lambda: controller.show_frame(AssetPage))
+		asset_button.pack()
+
+		home_button = ttk.Button(self, text='Back', command=lambda: controller.show_frame(HomePage))
+		home_button.pack()
+
+		quit_button = ttk.Button(self, text='Exit', command= self.close_message)
+		quit_button.pack()
+
+	def sw_refresh(self):
+
+		sw_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\softwarereport.csv', encoding='utf8', dtype=str)
+		hw_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', encoding='windows-1252')
+
+		sw_df = sw_df[['Program Name','Version','Publisher','Device Name','Serial Number','Asset Number','InstallLocation','Install']]
+		sw_df.rename(columns={'Serial Number':'SW_Serial Number'}, inplace=True)
+
+		hwsw_merge = pd.merge(sw_df, hw_df, how='left', left_on='Asset Number', right_on='asset_tag')
+
+		hwsw_merge = hwsw_merge[['Program Name','Version','Publisher','Device Name','SW_Serial Number','Asset Number','Last Connected (UTC)',
+		'Usage Level','PC Class','model','assigned_to.department','assigned_to.user_name','warranty_expiration','install_status']]
+
+		hwsw_merge.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\hwswmergereport.csv', 
+				 encoding='utf8', index=False)
+
+		print('merge complete')
+
+
+class SWAllPage(tk.Frame):
+
+	def __init__(self, parent, controller):
+
+		tk.Frame.__init__(self,parent)
+		label = ttk.Label(self, text="Software Search", font=LARGE_FONT)
+		label.pack(pady=10,padx=10)
+		self.controller = controller
+		
+		self.label1 = ttk.Label(self, text='Search For: ')
+		self.all_entry = ttk.Entry(self)
+		self.label1.pack()
+		self.all_entry.pack()
+		self.all_entry.focus_set()
+
+		all_button = ttk.Button(self, text='Search', command=self.swall_lookup)
+		all_button.pack()
+		
+		export_button = ttk.Button(self, text='Export', command=self.allexport_lookup)
+		export_button.pack()
+		
+		clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
+		clear_button.pack()
+		
+		back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SWSearchPage))
+		back_button.pack()
+		
+		home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+		home_button.pack()
+
+	def swall_lookup(self):
+	
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hwswmergereport.csv', encoding='utf8', dtype=str)
+
+		pd.options.display.max_columns = None
+		pd.options.display.max_rows = None
+		pd.options.mode.chained_assignment = None
+		pd.set_option('display.max_colwidth', -1)
+		df = df.apply(lambda x: x.astype(str).str.upper())
+		
+		window = tk.Tk()
+		window.geometry('1000x500')
+		
+		frame = tk.Frame(window)
+		frame.pack()
+		
+		df = df.apply(lambda x: x.astype(str).str.upper())
+		
+		mask = np.column_stack([df[col].str.contains(self.all_entry.get().upper(), na=False, regex=False) for col in df])
+		all_input = df.loc[mask.any(axis=1)]
+
+		scrolly = ttk.Scrollbar(frame, orient='vertical')
+		scrollx = ttk.Scrollbar(frame, orient='horizontal')
+		scrolly.pack(side='right', fill='y')
+		scrollx.pack(side='bottom', fill='x')
+		
+		self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
+		self.t1.config(wrap='none')
+		self.t1.pack(fill='both', expand=True)
+		self.t1.insert(tk.END,all_input)
+		
+		scrolly.config(command=self.t1.yview)
+		scrollx.config(command=self.t1.xview)
+
+	def allexport_lookup(self):
+		
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hwswmergereport.csv', encoding='utf8', dtype=str)
+
+		pd.options.display.max_columns = None
+		pd.options.display.max_rows = None
+		pd.options.mode.chained_assignment = None
+		pd.set_option('display.max_colwidth', -1)
+		df = df.apply(lambda x: x.astype(str).str.upper())
+		
+		df = df.apply(lambda x: x.astype(str).str.upper())
+		
+		mask = np.column_stack([df[col].str.contains(self.all_entry.get().upper(), na=False, regex=False) for col in df])
+		sw_input = df.loc[mask.any(axis=1)]
+		
+		sw_input.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\sw data\\swassetreport.csv', 
+						 encoding='windows-1252', index=False)
+
+		os.startfile(r'C:\Users\TWALTON\Desktop\python hw data\sw data\swassetreport.csv', 'open')
+
+	def clear_textbox(self):
+		self.all_entry.delete(0, 'end')
+
+
+class PublisherPage(tk.Frame):
+
+	def __init__(self, parent, controller):
+
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hwswmergereport.csv', encoding='utf8', dtype=str)
+
+		df['Publisher'] = df['Publisher'].astype(str)
+		publishers = sorted(df['Publisher'].unique().tolist())
+		
+		tk.Frame.__init__(self,parent)
+		self.var = tk.StringVar()
+
+		self.publisher_list = ttk.Combobox(self, textvariable=self.var, values=publishers)
+		self.publisher_list.pack()
+
+		all_button = ttk.Button(self, text='Search', command=self.publisher_lookup)
+		all_button.pack()
+		
+		export_button = ttk.Button(self, text='Export', command=self.publisher_export)
+		export_button.pack()
+		
+		back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SWSearchPage))
+		back_button.pack()
+		
+		home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+		home_button.pack()
+
+	def publisher_lookup(self):
+	
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hwswmergereport.csv', encoding='utf8', dtype=str)
+
+		pd.options.display.max_columns = None
+		pd.options.display.max_rows = None
+		pd.options.mode.chained_assignment = None
+		pd.set_option('display.max_colwidth', -1)
+		df = df.apply(lambda x: x.astype(str).str.upper())
+		
+		window = tk.Tk()
+		window.geometry('1000x500')
+		
+		frame = tk.Frame(window)
+		frame.pack()
+		
+		df = df.apply(lambda x: x.astype(str).str.upper())
+		
+		mask = np.column_stack([df[col].str.contains(self.var.get().upper(), na=False, regex=False) for col in df])
+		publisher_input = df.loc[mask.any(axis=1)]
+
+		scrolly = ttk.Scrollbar(frame, orient='vertical')
+		scrollx = ttk.Scrollbar(frame, orient='horizontal')
+		scrolly.pack(side='right', fill='y')
+		scrollx.pack(side='bottom', fill='x')
+		
+		self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
+		self.t1.config(wrap='none')
+		self.t1.pack(fill='both', expand=True)
+		self.t1.insert(tk.END,publisher_input)
+		
+		scrolly.config(command=self.t1.yview)
+		scrollx.config(command=self.t1.xview)
+
+	def publisher_export(self):
+		
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hwswmergereport.csv', encoding='utf8', dtype=str)
+
+		mask = np.column_stack([df[col].str.contains(self.var.get(), na=False, regex=False) for col in df])
+		publisher_input = df.loc[mask.any(axis=1)]
+		
+		publisher_input.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\sw data\\swpublisherexport.csv', 
+						 encoding='windows-1252', index=False)
+
+		os.startfile(r'C:\Users\TWALTON\Desktop\python hw data\sw data\swpublisherexport.csv', 'open')
+
+
+class AssetPage(tk.Frame):
+
+	def __init__(self, parent, controller):
+
+		tk.Frame.__init__(self,parent)
+		label = ttk.Label(self, text="Software Search", font=LARGE_FONT)
+		label.pack(pady=10,padx=10)
+		self.controller = controller
+		
+		self.label1 = ttk.Label(self, text='Search For: ')
+		self.all_entry = ttk.Entry(self)
+		self.label1.pack()
+		self.all_entry.pack()
+		self.all_entry.focus_set()
+
+		all_button = ttk.Button(self, text='Search', command=self.asset_lookup)
+		all_button.pack()
+		
+		export_button = ttk.Button(self, text='Export', command=self.asset_export)
+		export_button.pack()
+		
+		clear_button = ttk.Button(self, text='Clear', command=self.clear_textbox)
+		clear_button.pack()
+		
+		back_button = ttk.Button(self, text='Back', command= lambda: controller.show_frame(SWSearchPage))
+		back_button.pack()
+		
+		home_button = ttk.Button(self, text='Home', command= lambda: controller.show_frame(HomePage))
+		home_button.pack()
+
+	def asset_lookup(self):
+	
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hwswmergereport.csv', encoding='utf8', dtype=str)
+
+		sw_df = df[['Program Name','Version','Publisher','Device Name','Serial Number','Asset Number','InstallLocation','Install']]
+
+		pd.options.display.max_columns = None
+		pd.options.display.max_rows = None
+		pd.options.mode.chained_assignment = None
+		pd.set_option('display.max_colwidth', -1)
+		df = df.apply(lambda x: x.astype(str).str.upper())
+		
+		window = tk.Tk()
+		window.geometry('1000x500')
+		
+		frame = tk.Frame(window)
+		frame.pack()
+		
+		sw_df = sw_df.apply(lambda x: x.astype(str).str.upper())
+		
+		mask = np.column_stack([sw_df[col].str.contains(self.all_entry.get().upper(), na=False, regex=False) for col in sw_df])
+		all_input = sw_df.loc[mask.any(axis=1)]
+
+		scrolly = ttk.Scrollbar(frame, orient='vertical')
+		scrollx = ttk.Scrollbar(frame, orient='horizontal')
+		scrolly.pack(side='right', fill='y')
+		scrollx.pack(side='bottom', fill='x')
+		
+		self.t1=tk.Text(frame,height=500,width=1000, wrap='none', xscrollcommand=scrollx.set, yscrollcommand=scrolly.set)
+		self.t1.config(wrap='none')
+		self.t1.pack(fill='both', expand=True)
+		self.t1.insert(tk.END,all_input)
+		
+		scrolly.config(command=self.t1.yview)
+		scrollx.config(command=self.t1.xview)
+
+	def asset_export(self):
+		
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hwswmergereport.csv', encoding='utf8', dtype=str)
+
+		sw_df = df[['Program Name','Version','Publisher','Device Name','Serial Number','Asset Number','InstallLocation','Install']]
+
+		pd.options.display.max_columns = None
+		pd.options.display.max_rows = None
+		pd.options.mode.chained_assignment = None
+		pd.set_option('display.max_colwidth', -1)
+		df = df.apply(lambda x: x.astype(str).str.upper())
+		
+		sw_df = sw_df.apply(lambda x: x.astype(str).str.upper())
+		
+		mask = np.column_stack([sw_df[col].str.contains(self.all_entry.get().upper(), na=False, regex=False) for col in sw_df])
+		sw_input = sw_df.loc[mask.any(axis=1)]
+		
+		sw_input.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\sw data\\swassetreport.csv', 
+						 encoding='windows-1252', index=False)
+
+		os.startfile(r'C:\Users\TWALTON\Desktop\python hw data\sw data\swassetreport.csv', 'open')
+
+	def clear_textbox(self):
+		self.all_entry.delete(0, 'end')
+
+
+class PhonePage(tk.Frame, MessageBoxes):
+
+	def __init__(self, parent, controller):
+
+		tk.Frame.__init__(self,parent)
+		label = ttk.Label(self, text='Thoth v0.1', font=LARGE_FONT)
+		label.pack(pady=10,padx=10)
+		self.controller = controller
+
+		usage_button = ttk.Button(self, text='No Usage Phones', command=self.no_usage)
+		usage_button.pack()
+
+		return_request_button = ttk.Button(self, text='Email Users', command=self.phone_email)
+		return_request_button.pack()
+
+		home_button = ttk.Button(self, text='Back', command=lambda: controller.show_frame(HomePage))
+		home_button.pack()
+
+		quit_button = ttk.Button(self, text='Exit', command= self.close_message)
+		quit_button.pack()
+
+	def no_usage(self):
+
+		phone_list = ['iPhone 8','IPhone 6S','Cell Phone','iPhone 7','Cell Phone (Data Only)',
+		'IPhone 6','iPhone 5S','iPhone 6 Plus','iPhone 6S Plus','iPhone 8 Plus','IPad']
+
+		device_list = ['LTE Tablet','LTE Router','Mi-Fi Hot Spot','GPS Trimble',
+		'Modem (Cellular)','Air Card(VPN)','Air Card (Open)']
+
+		filename = 'C:\\Users\\TWALTON\\Desktop\\call accounting\\callaccounting.csv'
+		bsc_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\call accounting\bsclist.csv')
+
+		call_df = pd.read_csv(filename)
+		call_df['Mobile Number'] = call_df['Mobile Number'].astype('str')
+		call_df['Mobile Number'] = call_df['Mobile Number'].str[:10]
+		call_df['IMEI'] = call_df['IMEI'].astype('str')
+
+
+		usage_df = call_df[(call_df['Usage Last 3 Months'] == 'No')]
+		usage_df1 = usage_df.dropna(axis=0, subset=['E mail address'])
+		usage_df2 = usage_df1[(usage_df1['Suspended Device'] == 'No')]
+		phone_df = usage_df2[usage_df2['Device Type'].isin(phone_list)]
+		device_df = usage_df2[usage_df2['Device Type'].isin(device_list)]
+
+		phone_df1 = pd.merge(phone_df, bsc_df, how='left',left_on='DDO', right_on='DEPARTMENT')
+
+		phone_df1.to_csv(r'C:\Users\TWALTON\Desktop\call accounting\phonenousage.csv', encoding='windows-1252', index=False)
+
+		os.startfile(r'C:\Users\TWALTON\Desktop\call accounting\phonenousage.csv', 'open')
+
+		print(phone_df1)
+		print(device_df)
+
+	def phone_email(self):
+
+		# call_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\call accounting\phonenousage.csv', encoding='windows-1252', dtype=str)
+		call_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\call accounting\phonenousagetest.csv', encoding='windows-1252', dtype=str)
+
+		call_df['Tx DOT Employee Name'] = call_df['Tx DOT Employee Name'].replace(np.nan, '', regex=True)
+		call_df['BSC EMAIL'] = call_df['BSC EMAIL'].replace(np.nan, '', regex=True)
+		call_df['BSC EMAIL2'] = call_df['BSC EMAIL2'].replace(np.nan, '', regex=True)
+		call_df['IMEI'] = call_df['IMEI'].astype('int64')
+
+		usage_df = call_df[['Reporting Period','DDO','Mobile Number','IMEI','Device Type','Tx DOT Employee Name','E mail address','Vendor','BSC EMAIL','BSC EMAIL2']]
+
+		username = 'timothy.walton@txdot.gov'
+		password = 'Cowboy_30'
+
+		row = 0
+		for address, df in usage_df.loc[(usage_df['DDO'] == df)]:
+			device = usage_df.loc[row, 'Device Type']
+			phone_num = usage_df.loc[row, 'Mobile Number']
+			imei = usage_df.loc[row, 'IMEI']
+			name = usage_df.loc[row, 'Tx DOT Employee Name']
+			bsc1 = usage_df.loc[row, 'BSC EMAIL']
+			bsc2 = usage_df.loc[row, 'BSC EMAIL2']
+			vendor = usage_df.loc[row,'Vendor']
+			send_list = [address] + [bsc1] + [bsc2]
+
+		row = 0
+		for address in usage_df['E mail address']:
+
+			device = usage_df.loc[row, 'Device Type']
+			phone_num = usage_df.loc[row, 'Mobile Number']
+			imei = usage_df.loc[row, 'IMEI']
+			name = usage_df.loc[row, 'Tx DOT Employee Name']
+			bsc1 = usage_df.loc[row, 'BSC EMAIL']
+			bsc2 = usage_df.loc[row, 'BSC EMAIL2']
+			vendor = usage_df.loc[row,'Vendor']
+			send_list = [address] + [bsc1] + [bsc2]
+			title = 'IMD Request: Please Return {}#: {}'.format(device,'(' + phone_num[:3] + ') ' + phone_num[3:6] + '-' + phone_num[6:])
+			print(send_list)
+
+			msg = MIMEMultipart()
+			msg['From'] = username
+			msg['To'] = ", ".join(send_list)
+			msg['Subject'] = title
+
+			message = '''Hello, \n
+			Our records show that {}#: {} has not been used for the past 90 days.\n
+			Would you please determine if this {} is in your possession and is no longer needed?\n
+			If this is the case please send the device back to Camp Hubbard Building 6 so that we can either salvage or repurpose the device.\n
+			This initiative will help save TXDOT funds by reducing the monthly cellular service cost.\n
+			If the device information below is not correct, please let us know so we can redirect this message to the correct user.\n
+			Your help is greatly appreciated in this attempt to clean up our IT environment, the asset database and continue to be responsible with TXDOT's assets.\n
+
+			{}#: {} \n
+			Assigned To: {} \n
+			IMEI: {} \n
+			Provider: {} \n'''.format(device,'(' + phone_num[:3] + ') ' + phone_num[3:6] + '-' + phone_num[6:],device,device,
+				'(' + phone_num[:3] + ') ' + phone_num[3:6] + '-' + phone_num[6:],name,imei,vendor)
+
+			msg.attach(MIMEText(message))
+
+			# for path in files:
+			# 	part = MIMEBase('application', 'octet-stream')
+			# 	with open(path, 'rb') as file:
+			# 		part.set_payload(file.read())
+			# 	encoders.encode_base64(part)
+			# 	part.add_header('Content-Disposition', 'attachment; filename="{}"'.format(op.basename(path)))
+			# 	msg.attach(part)
+
+			# print("You passed the test...")
+
+			mailServer = smtplib.SMTP('smtp-mail.outlook.com', 587)
+			mailServer.ehlo()
+			mailServer.starttls()
+			mailServer.ehlo()
+			mailServer.login(username, password)
+			mailServer.sendmail(username, address, msg.as_string())
+			mailServer.close()
+			row+=1
+
+
+class InventoryPage(tk.Frame, MessageBoxes):
+
+	def __init__(self, parent, controller):
+
+		tk.Frame.__init__(self,parent)
+		label = ttk.Label(self, text='Thoth v0.1', font=LARGE_FONT)
+		label.pack(pady=10,padx=10)
+		self.controller = controller
+
+		refresh_button = ttk.Button(self, text='Refresh Data', command=self.depot_auto)
+		refresh_button.pack()
+
+		view_button = ttk.Button(self, text='View Data')
+		view_button.pack()
+
+		home_button = ttk.Button(self, text='Back', command=lambda: controller.show_frame(HomePage))
+		home_button.pack()
+
+		quit_button = ttk.Button(self, text='Exit', command= self.close_message)
+		quit_button.pack()
+
+	def depot_auto(self):
+
+		self.ship_data(ship_df,class_df)
+		self.inventory_calculations(inv_df)
+
+	def usage_breakdown(self):
+
+		df = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', encoding='windows-1252')
+
+		df['Scheduled Retirement'] = pd.to_datetime(df['Scheduled Retirement'], errors='coerce')
+
+		df = df.groupby(['Usage Level', 'PC Class'], as_index=False).count()
+		df = df[['Usage Level','Serial number', 'PC Class']]
+		df = df.pivot(index='PC Class', columns='Usage Level', values='Serial number')
+		df = df.rename_axis(None, axis=1).reset_index()
+
+		print(df)
+
+		pos = list(range(len(df['Heavily Used'])))
+		width = 0.2
+
+		fig, ax = plt.subplots(figsize=(15,10))
+
+		plt.bar(pos, df['Heavily Used'], width, alpha=0.5, color='#EE3224', label=df['PC Class'][0])
+		plt.bar([p + width for p in pos], df['Lightly Used'], width, alpha=0.5, color='#F78F1E', label=df['PC Class'][1])
+		plt.bar([p + width*2 for p in pos], df['Moderately Used'], width, alpha=0.5, color='#FFC222', label=df['PC Class'][2])
+		plt.bar([p + width*3 for p in pos], df['Not Used'], width, alpha=0.5, color='#CE8E00', label=df['PC Class'][3])
+
+		ax.set_title('PC Class Usage Level')
+		ax.set_xticks([p + 1.5 * width for p in pos])
+		ax.set_xticklabels(df['PC Class'])
+
+		plt.xlim(min(pos) - width, max(pos) + width*4)
+		plt.ylim([0, max(df['Moderately Used'] + 250)])
+
+		plt.legend(['Heavily Used', 'Lightly Used', 'Moderately Used', 'Not Used'], loc='upper left')
+		plt.grid()
+
+		plt.show()
+
+	def ship_data(self, shipdf, model):
+
+		self.shipdf = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculesshipdata.csv', encoding='windows-1252', dtype=str)
+		# self.shipdf['PC Class'] = ''
+		self.shipdf['Pro Support'] = ''
+
+		# self.shipdf['DATE SHIPPED'] = pd.to_datetime(self.shipdf['DATE SHIPPED'], format='%m/%d/%Y', errors='coerce')
+		# print(self.shipdf)
+
+		repairdf = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\DellProSupport.csv', encoding='windows-1252', dtype=str)
+		salvagedf = pd.read_csv(r'C:\Users\TWALTON\Desktop\python hw data\hercules data\herculessalvagedata.csv', encoding='utf-8', dtype=str)
+
+		model.set_index('PC MODEL', inplace=True)
+		model_map = model['PC CLASS'].to_dict()
+
+		self.shipdf['PC Class'] = self.shipdf['MODEL'].map(model_map)
+
+		for support in range(len(repairdf['Received Asset'])):
+
+			self.shipdf['Pro Support'] = np.where(repairdf.loc[support, 'Received Asset'] in self.shipdf['ASSET TAG NUMBER'], 'Y', 'N')
+
+		value = [['Engineer Laptop',3452.12],['Standard Laptop',1655.40],['2 in 1',2141.17],['Light Weight Laptop',1782.83],['Standard Desktop',794.74],['Engineer Desktop',3042.13],['Rugged Laptop',3129.05]]
+		value_df = pd.DataFrame(value, columns=['PC Class','Cost'])
+
+		self.ship_merge = pd.merge(self.shipdf, value_df, how='left', left_on='PC Class', right_on='PC Class')
+
+		self.ship_merge.to_csv(r'C:\Users\TWALTON\Desktop\python hw data\herculesdata.csv', encoding='windows-1252', index=False)
+		self.ship_merge['DATE SHIPPED'] = pd.to_datetime(self.ship_merge['DATE SHIPPED'])
+
+		salvage_merge = pd.merge(self.ship_merge, salvagedf, how='left', left_on='SERIAL NUMBER', right_on='DevSerial')
+		print(salvage)
+
+		print(self.ship_merge)
+		min_date = self.ship_merge['DATE SHIPPED'].min()
+		print(min_date)
+		max_date = self.ship_merge['DATE SHIPPED'].max()
+		print(max_date)
+		ay_start = dt.datetime(2018,9,1).strftime('%Y-%m-%d')
+		ay_end = dt.datetime(2019,8,31).strftime('%Y-%m-%d')
+		today = pd.to_datetime('today').strftime('%Y-%m-%d')
+		self.days = np.busday_count(min_date.date(), max_date.date())
+		self.ay_days = np.busday_count(ay_start, today)
+		self.to_date = np.busday_count(today, ay_end)
+
+		mask = self.ship_merge['DATE SHIPPED'].between(ay_start, ay_end)
+
+		ay_hlm = self.ship_merge[mask]
+
+		self.ship_table = self.ship_merge.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Refurb'], aggfunc='count')
+		self.ship_table.columns = self.ship_table.columns.droplevel(0)
+		self.ship_table = self.ship_table.reset_index().rename_axis(None, axis=1)
+		self.ship_table = self.ship_table.dropna()
+		self.ship_table['New Device Burn Rate'] = self.ship_table['N'].apply(lambda x: x/self.days)
+		self.ship_table['Refurb Device Burn Rate'] = self.ship_table['Y'].apply(lambda x: x/self.days)
+		self.ship_table['Total Ship Burn Rate'] = self.ship_table['New Device Burn Rate'] + self.ship_table['Refurb Device Burn Rate']
+
+		hlm_df = ay_hlm.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['HLM'], aggfunc='count')
+		hlm_df.columns = hlm_df.columns.droplevel(0)
+		hlm_df = hlm_df.reset_index().rename_axis(None, axis=1)
+
+		ay_df = ay_hlm.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Refurb'], aggfunc='count')
+		ay_df.columns = ay_df.columns.droplevel(0)
+		ay_df = ay_df.reset_index().rename_axis(None, axis=1)
+
+		self.ship_merge = pd.merge(self.ship_table, hlm_df, on='PC Class').merge(ay_df,on='PC Class')
+		self.ship_merge.rename(columns={'N_x':'New Device', 'Y_x':'Refurb Device', 'N_y':'No HLM', 'Y_y':'HLM'}, inplace=True)
+		self.ship_merge.rename(columns={'N':'AY New Device','Y':'AY Refurb Device'}, inplace=True) 
+
+	def inventory_calculations(self, inventory):
+
+		vba_df = pd.read_csv(r'C:\Users\TWALTON\Desktop\HWASSETREPORTTEST.csv', encoding='windows-1252', dtype=str)
+		vba_df['warranty_expiration'] = pd.to_datetime(vba_df['warranty_expiration'], errors='coerce')
+
+		inv_status = ['In stock']
+		inv_count = vba_df.loc[vba_df['install_status'].isin(inv_status)]
+
+		maint_status = ['In maintenance']
+		maint_count = vba_df.loc[vba_df['install_status'].isin(maint_status)]
+		maint_count = maint_count[maint_count['warranty_expiration'] > (pd.to_datetime('today') + pd.offsets.DateOffset(years=1))]
+
+		salvage_count = vba_df.loc[vba_df['install_status'].isin(maint_status)]
+		salvage_count = salvage_count[salvage_count['warranty_expiration'] < (pd.to_datetime('today') + pd.offsets.DateOffset(years=1))]
+
+		all_status = ['In maintenance','In use','In transit']
+		all_count = vba_df.loc[vba_df['install_status'].isin(all_status)]
+		all_count = all_count.dropna(subset=['assigned_to'])
+
+		eol_count = vba_df[vba_df['warranty_expiration'] < pd.to_datetime('today')]
+
+		inv_pivot = inv_count.pivot_table(values='asset_tag', index='PC Class', aggfunc='count')
+		inv_pivot = inv_pivot.reset_index().rename_axis(None, axis=1)
+		inv_pivot = inv_pivot.dropna()
+		inv_pivot.rename(columns={'asset_tag':'Total Inventory1'}, inplace=True)
+
+		maint_pivot = maint_count.pivot_table(values='asset_tag',index='PC Class',aggfunc='count')
+		maint_pivot = maint_pivot.reset_index().rename_axis(None, axis=1)
+		maint_pivot = maint_pivot.dropna()
+		maint_pivot.rename(columns={'asset_tag':'Diagnostics/Repair'}, inplace=True)
+
+		salvage_pivot = salvage_count.pivot_table(values='asset_tag',index='PC Class',aggfunc='count')
+		salvage_pivot = salvage_pivot.reset_index().rename_axis(None, axis=1)
+		salvage_pivot = salvage_pivot.dropna()
+		salvage_pivot.rename(columns={'asset_tag':'Pending Salvage'}, inplace=True)
+
+		all_pivot = all_count.pivot_table(values='asset_tag',index='PC Class',aggfunc='count')
+		all_pivot = all_pivot.reset_index().rename_axis(None, axis=1)
+		all_pivot = all_pivot.dropna()
+
+		all_pivot['HLM Targets'] = (all_pivot['asset_tag']*.25)
+		all_pivot.rename(columns={'asset_tag':'Total Assets'}, inplace=True)
+
+		eol_pivot = eol_count.pivot_table(values='asset_tag',index='PC Class',aggfunc='count')
+		eol_pivot = eol_pivot.reset_index().rename_axis(None, axis=1)
+		eol_pivot = eol_pivot.dropna()
+		eol_pivot.rename(columns={'asset_tag':'EOL Devices'}, inplace=True)
+
+		multi_merge = inv_pivot.merge(all_pivot,on='PC Class', how='outer').merge(eol_pivot, on='PC Class', how='outer').merge(maint_pivot, on='PC Class', how='outer').merge(salvage_pivot, on='PC Class', how='outer')
+		# print(multi_merge)
+
+		inventory['PC Class'] = ''
+
+		row = 0
+		for model in range(len(inventory)):
+
+			if inventory.loc[model, 'model'] in eng_dt:
+				inventory.loc[model,'PC Class'] = 'Engineer Desktop'
+				row+=1
+
+			elif inventory.loc[model, 'model'] in eng_lt:
+				inventory.loc[model,'PC Class'] = 'Engineer Laptop'
+				row+=1
+
+			elif inventory.loc[model, 'model'] in exec_lt:
+				inventory.loc[model,'PC Class'] = 'Executive Laptop'
+				row+=1
+
+			elif inventory.loc[model, 'model'] in lw_lt:
+				inventory.loc[model,'PC Class'] = 'Light Weight Laptop'
+				row+=1
+
+			elif inventory.loc[model, 'model'] in two_in_one:
+				inventory.loc[model,'PC Class'] = '2 in 1'
+				row+=1
+
+			elif inventory.loc[model, 'model'] in std_dt:
+				inventory.loc[model,'PC Class'] = 'Standard Desktop'
+				row+=1
+
+			elif inventory.loc[model, 'model'] in std_lt:
+				inventory.loc[model,'PC Class'] = 'Standard Laptop'
+				row+=1
+
+			elif inventory.loc[model, 'model'] in rugged:
+				inventory.loc[model,'PC Class'] = 'Rugged Laptop'
+				row+=1
+
+			else:
+				inventory.loc[model, 'PC Class'] = 'NA'
+				row+=1
+
+		inv_table = inventory.pivot_table(values='asset_tag', index=['PC Class'], aggfunc='count')
+		inv_table = inv_table.reset_index().rename_axis(None, axis=1)
+
+		# print(inv_table)
+
+		table_merge = pd.merge(inv_table, self.ship_merge, on='PC Class')
+
+		table_merge['Minimum Lead Time Inventory'] = table_merge['Total Ship Burn Rate'].apply(lambda x: x*25)
+		table_merge['Projected Reorder Date'] = (table_merge['asset_tag'] - table_merge['Minimum Lead Time Inventory'])/table_merge['Total Ship Burn Rate']
+		table_merge['Projected Reorder Date'] = datetime.now() + table_merge['Projected Reorder Date'].apply(lambda x: dt.timedelta(days= x))
+		table_merge['Projected Reorder Date'] = table_merge['Projected Reorder Date'].dt.date
+
+		final_table = pd.merge(table_merge, multi_merge, how='outer', on='PC Class')
+
+		today = pd.to_datetime('today').strftime('%Y-%m-%d')
+		ay_end = dt.datetime(2019,8,31).strftime('%Y-%m-%d')
+		ay_days = np.busday_count(today, ay_end)
+
+		final_table['BAU Burn Rate'] = final_table['No HLM'].apply(lambda x: x/self.ay_days)
+		final_table['HLM Burn Rate'] = (final_table['HLM Targets'] - final_table['HLM'])/self.to_date
+		final_table['Total Burn Rate'] = final_table['HLM Burn Rate'] + final_table['BAU Burn Rate']
+		final_table['AY New Device Burn Rate'] = final_table['AY New Device'].apply(lambda x: x/self.ay_days)
+		final_table['AY Refurb Device Burn Rate'] = final_table['AY Refurb Device'].apply(lambda x: x/self.ay_days)
+		final_table.rename(columns={'asset_tag':'Total Inventory'}, inplace=True)
+
+		final_table = final_table[['PC Class','Total Assets','Total Inventory','Diagnostics/Repair','Pending Salvage','EOL Devices','HLM Targets','New Device','Refurb Device','No HLM','HLM','AY New Device',
+									'AY Refurb Device','New Device Burn Rate','Refurb Device Burn Rate','Total Ship Burn Rate','Minimum Lead Time Inventory', 
+									'Projected Reorder Date','BAU Burn Rate','HLM Burn Rate','AY New Device Burn Rate','AY Refurb Device Burn Rate','Total Burn Rate']]
+
+		final_table.rename(columns={'New Device':'New Devices Shipped'}, inplace=True)
+		final_table.rename(columns={'Refurb Device':'Refurb Devices Shipped'}, inplace=True)
+		final_table.rename(columns={'No HLM':'BAU Shipped'}, inplace=True)
+		final_table.rename(columns={'HLM':'HLM Shipped'}, inplace=True)
+
+		print(final_table)
+
+		final_table.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\inventorymodel.csv', 
+				 encoding='windows-1252', index=False)
+
+		daily_br = self.ship_merge.pivot_table(values=['AIRBILL NUMBER'], index=['DATE SHIPPED'], columns=['PC Class'], aggfunc='count')
+		daily_br.fillna(0.0, inplace=True)
+		daily_br.columns = daily_br.columns.droplevel(0)
+		daily_br = daily_br.reset_index().rename_axis(None, axis=1)
+
+		daily_br.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\dailybr.csv', encoding='windows-1252', index=False)
+
+	def br_historical(self):
+
+		self.ship_merge['Month Year'] = self.ship_merge['DATE SHIPPED'].dt.to_period('M')
+
+		today = pd.to_datetime('today').strftime('%Y-%m-%d')
+		ay17_start = dt.datetime(2016,9,1).strftime('%Y-%m-%d')
+		ay17_end = dt.datetime(2017,8,31).strftime('%Y-%m-%d')
+		ay17_days = np.busday_count(ay17_start, ay17_end)
+
+		mask = self.ship_merge['DATE SHIPPED'].between(ay17_start, ay17_end)
+		ay17_br = self.ship_merge[mask]
+
+		ay17_table = ay17_br.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Month Year'], aggfunc='count')
+
+		ay18_start = dt.datetime(2017,9,1).strftime('%Y-%m-%d')
+		ay18_end = dt.datetime(2018,8,31).strftime('%Y-%m-%d')
+		ay18_days = np.busday_count(ay18_start, ay18_end)
+
+		mask = self.ship_merge['DATE SHIPPED'].between(ay18_start, ay18_end)
+		ay18_br = self.ship_merge[mask]
+
+		ay18_table = ay18_br.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Month Year'], aggfunc='count')
+
+		ay19_start = dt.datetime(2018,9,1).strftime('%Y-%m-%d')
+		ay19_end = dt.datetime(2019,8,31).strftime('%Y-%m-%d')
+		ay19_days = np.busday_count(ay19_start, ay19_end)
+
+		mask = self.ship_merge['DATE SHIPPED'].between(ay19_start, ay19_end)
+		ay19_br = self.ship_merge[mask]
+
+		ay19_table = ay19_br.pivot_table(values=['AIRBILL NUMBER'], index=['PC Class'], columns=['Month Year'], aggfunc='count')
+
+		merge1 = pd.merge(ay17_table, ay18_table, how='right', right_on='PC Class',left_on='PC Class')
+
+		self.merge2 = pd.merge(merge1, ay19_table, how='right', right_on='PC Class',left_on='PC Class')
+		self.merge2.columns = self.merge2.columns.droplevel(0)
+		self.merge2 = self.merge2.reset_index()
+		self.merge2.fillna(0.0, inplace=True)
+		self.final_merge = self.merge2.transpose()
+
+		self.merge2.to_csv('C:\\Users\\TWALTON\\Desktop\\python hw data\\monthlybr.csv', 
+				 encoding='windows-1252', index=False)
+
+	def br_monthly_visual(self):
+		
+		self.merge2.plot(x=['2017-01','2017-02','2017-03','2017-04','2017-05','2017-06','2017-07','2017-08','2017-09','2017-10','2017-11','2017-12',
+			'2018-01','2018-02','2018-03','2018-04','2018-05','2018-06','2018-07','2018-08','2018-09','2018-10','2018-11','2018-12','2019-01','2019-02',
+			'2019-03','2019-04','2019-05','2019-06'],y=['PC Class'],kind='line')
+
+
+
+app = P2P_Gui()
+app.mainloop()
